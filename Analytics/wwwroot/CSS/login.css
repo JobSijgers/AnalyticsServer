@@ -1,0 +1,303 @@
+﻿/* Import global and particle styles */
+@import url('global.css');
+@import url('particles.css');
+
+/* Prevent scrolling (from game.css) */
+body.no-scroll {
+    overflow: hidden;
+}
+
+/* Body styling */
+body {
+    margin: 0;
+    font-family: 'Orbitron', 'Roboto', sans-serif;
+    background: #111; /* Fallback background */
+    color: #eee;
+    min-height: 100vh;
+    position: relative;
+    overflow: hidden; /* Reinforce no-scroll */
+}
+
+/* KnucleHub Logo */
+.logo {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    width: 120px; /* Small to medium size */
+    height: auto;
+    z-index: 10; /* Above canvas and overlay, below loading overlay */
+    filter: drop-shadow(0 0 10px rgba(218, 135, 39, 0.5)); /* Neon glow */
+}
+
+/* ===== Login Page ===== */
+.login-container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 2rem; /* Restored for centering */
+    min-height: calc(100vh - 7rem); /* Accounts for navbar padding */
+    display: flex;
+    align-items: center; /* Center vertically */
+    justify-content: center; /* Center horizontally */
+}
+
+.login-panel {
+    background: rgba(26, 26, 26, 0.95);
+    border: 1px solid rgba(218, 135, 39, 0.3);
+    border-radius: 12px;
+    padding: 2rem;
+    width: 100%;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 30px rgba(218, 135, 39, 0.3);
+    backdrop-filter: blur(6px);
+    animation: pulse-glow 4s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 30px rgba(218, 135, 39, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 40px rgba(218, 135, 39, 0.5);
+    }
+}
+
+.login-title {
+    font-size: 2rem;
+    color: rgb(218, 135, 39);
+    margin-bottom: 1.5rem;
+    text-shadow: 0 0 10px rgba(218, 135, 39, 0.7), 0 0 20px rgba(218, 135, 39, 0.4);
+    text-align: center;
+    font-weight: 700;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-title::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(to right, transparent, rgba(218, 135, 39, 0.8), transparent);
+    animation: scanline-title 3s linear infinite;
+}
+
+@keyframes scanline-title {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.input-group {
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.input-group label {
+    display: block;
+    font-size: 0.9rem;
+    color: #eee;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    text-shadow: 0 0 5px rgba(218, 135, 39, 0.3);
+}
+
+.input-group input {
+    width: 100%;
+    padding: 0.6rem;
+    background: rgba(34, 34, 34, 0.9);
+    border: 1px solid rgba(218, 135, 39, 0.3);
+    border-radius: 6px;
+    color: #eee;
+    font-size: 0.9rem;
+    font-family: 'Orbitron', 'Roboto', sans-serif;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: rgb(218, 135, 39);
+    box-shadow: 0 0 12px rgba(218, 135, 39, 0.5);
+}
+
+.input-group input::placeholder {
+    color: rgba(238, 238, 238, 0.5);
+}
+
+.primary-btn {
+    background: rgb(218, 135, 39);
+    color: #111;
+    border: none;
+    border-radius: 6px;
+    padding: 0.6rem 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.9rem;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+    font-family: 'Orbitron', 'Roboto', sans-serif;
+}
+
+.primary-btn:hover {
+    background: rgb(255, 165, 0);
+    transform: translateY(-2px);
+    box-shadow: 0 0 15px rgba(218, 135, 39, 0.7);
+}
+
+.primary-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to right, transparent, rgba(255, 165, 0, 0.3), transparent);
+    animation: scanline-btn 2.5s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes scanline-btn {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.primary-btn:not(:hover)::after {
+    animation-play-state: running;
+}
+
+.primary-btn:hover::after {
+    animation-play-state: running;
+}
+
+.primary-btn:disabled {
+    background: #666;
+    color: #aaa;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.primary-btn:disabled::after {
+    animation: none;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.loading-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.overlay-loader {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgb(218, 135, 39);
+    border-radius: 8px;
+    background: transparent;
+    animation: spin-shrink 1.2s ease-in-out infinite;
+    box-shadow: 0 0 15px rgba(218, 135, 39, 0.5);
+    box-sizing: border-box;
+}
+
+.loading-text {
+    margin-top: 2rem;
+    color: rgb(218, 135, 39);
+    font-size: 1rem;
+    font-weight: 500;
+    text-align: center;
+    font-family: 'Orbitron', 'Roboto', sans-serif;
+    text-shadow: 0 0 10px rgba(218, 135, 39, 0.5);
+}
+
+@keyframes spin-shrink {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+    25% {
+        transform: rotate(90deg) scale(0.7);
+    }
+    50% {
+        transform: rotate(180deg) scale(1);
+    }
+    75% {
+        transform: rotate(270deg) scale(0.7);
+    }
+    100% {
+        transform: rotate(360deg) scale(1);
+    }
+}
+
+/* Toast Notifications */
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 4000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: rgba(26, 26, 26, 0.95);
+    border: 1px solid rgb(218, 135, 39);
+    color: #eee;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    min-width: 200px;
+    animation: slideIn 0.3s ease, fadeOut 0.5s ease 10s forwards;
+    font-family: 'Orbitron', 'Roboto', sans-serif;
+    box-shadow: 0 0 10px rgba(218, 135, 39, 0.4);
+}
+
+@keyframes slideIn {
+    0% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}

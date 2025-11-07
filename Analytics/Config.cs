@@ -1,0 +1,9 @@
+﻿public static class Config
+{
+    public const string Username = "KHSAdmin";
+    public const string Password = "c66b6463023a5e39572ea5c1df66599c9c44e637a1c0318324db46315700b6f8";
+    public const string BearerToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFkczo4ZDczOTk2NS02ZjMwLTQ2ZTItOGQ3MC1mZWE3MGFjNDA5ZjMifQ.eyJpc3MiOiJ1bml0eS1hZHMiLCJnZW5lc2lzSWQiOiI5MDcxMzEyMjA0MzA2IiwidXVpZCI6IjM2NDA4MWZhLTE3NWItNDJjZS0wMDAwLTA4NDAxNDU3NzIxMiIsInJvbGVzIjpbXSwiaWF0IjoxNzYyNDIwODUyLCJleHAiOjE3NjI2ODAwNTIsInN1YiI6IjVmNjlmZDk3ZTUyMjgzMzg5YmVkZWYzNiIsImp0aSI6IjhjZjI4NWVlOTU4NWQ5MTRjZjA5NzU3NDFiYzI5MGJkYmI3NGI0MTg0ZTA1MmZmOWM0ZDcwOGI5OTZhMWE2MDYifQ.Ktsx4sG7LNj8qQACd6VWyY3oV72J8lUT7YnKEKzyMlBO1_WiUbJE7u9jlAtCuyqIeMduNFkD_3FVU65YjEnVhM_dESn-g--XzMZ-CCV3ICbWFkM3Q1YcX-rpDvHGRNrMiIluUZFLAysng4BBFBtOTpK9N1I2NSCk3TOHefziAxySpIk_ItdEYFz1isy3ej3brDufv7Kd0mQ6M0TUIAGrsv_rtb5XzwfTPGp2a3DUR2hyOJUlF0wWMEDel9jX46UbEIYZbh3usnubkAg2E-zCPw1a1X1x4kRD1b9EshKWo0o0NBupK4oS1I4kBQ4VBacuaL0JRIdcXrHP2rNU0pScFw";
+        
+    public const string AppUrl = "http://localhost:5000";
+    public const int FetchIntervalMs = 3600000;
+}

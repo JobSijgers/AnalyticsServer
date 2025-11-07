@@ -1,0 +1,88 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="CSS/login.css">
+    <link rel="stylesheet" href="CSS/particles.css">
+    <link rel="stylesheet" href="CSS/global.css">
+    <link rel="stylesheet" href="CSS/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="no-scroll">
+<!-- Background Canvas for Animation -->
+<canvas id="background-canvas"></canvas>
+<div class="matrix-overlay"></div>
+
+<!-- KnucleHub Logo -->
+<img src="images/KnucleHub.png" alt="KnucleHub Logo" class="logo">
+
+<div class="page fade-in">
+    <div class="dashboard-header">
+        <h1>Analytics Fetch Manager</h1>
+        <p>Manage and create new fetch requests to Unity Analytics. Save configurations to JSON for use in AnalyticsService.cs.</p>
+    </div>
+
+    <!-- Form to Add New Fetch Request -->
+    <div class="fetch-form-container">
+        <h2>Add New Fetch Request</h2>
+        <form id="fetch-form">
+            <div class="input-group">
+                <label for="projectId">Project ID</label>
+                <input type="text" id="projectId" name="projectId" placeholder="e.g., 6d5ee814-d031-42e3-bdb1-10a9230edc00" required>
+            </div>
+            <div class="input-group">
+                <label for="environmentId">Environment ID</label>
+                <input type="text" id="environmentId" name="environmentId" placeholder="e.g., 01c53a71-56d9-4d2c-a8c2-3553b349b865" required>
+            </div>
+            <div class="input-group">
+                <label for="chartName">Chart Name</label>
+                <input type="text" id="chartName" name="chartName" placeholder="e.g., sql_de" required>
+            </div>
+            <div class="input-group">
+                <label for="sqlQuery">SQL Query</label>
+                <textarea id="sqlQuery" name="sqlQuery" rows="5" placeholder="e.g., SELECT SUM(EVENT_JSON:GoodKills::INT + EVENT_JSON:BadKills::INT + EVENT_JSON:BonusKills::INT) AS total_kills FROM EVENTS WHERE EVENT_NAME = 'PlayerWaveData'" required></textarea>
+            </div>
+            <div class="input-group">
+                <label for="requestName">Request Name (for reference)</label>
+                <input type="text" id="requestName" name="requestName" placeholder="e.g., Total Kills Query">
+            </div>
+            <button type="submit" class="primary-btn">Add Request</button>
+        </form>
+    </div>
+
+    <!-- List of Fetch Requests -->
+    <div class="requests-list-container">
+        <h2>Saved Fetch Requests</h2>
+        <div id="requests-list"></div>
+        <div class="list-actions">
+            <button id="save-json" class="primary-btn">Save to JSON</button>
+            <input type="file" id="load-json" accept=".json" style="display: none;">
+            <button id="load-json-btn" class="secondary-btn">Load from JSON</button>
+            <button id="clear-all" class="danger-btn">Clear All</button>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions">
+        <h3>How to Use</h3>
+        <ul>
+            <li>Fill in the form to create a new fetch request configuration.</li>
+            <li>Click "Add Request" to add it to the list.</li>
+            <li>Use "Save to JSON" to download a file (e.g., fetchConfigs.json) that can be loaded into your AnalyticsService.cs (e.g., via Config.FetchRequests).</li>
+            <li>Use "Load from JSON" to import previously saved configurations.</li>
+            <li>Edit or delete requests from the list as needed.</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Toast Container for Notifications -->
+<div id="toast-container"></div>
+
+<!-- External JavaScript -->
+<script src="JS/TokenManager.js"></script>
+<script src="JS/Particles.js"></script>
+<script src="JS/Dashboard.js"></script>
+</body>
+</html>
