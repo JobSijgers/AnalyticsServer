@@ -35,29 +35,36 @@
         <div class="modal-content">
             <span id="close-fetch-modal" class="close-btn">&times;</span>
             <h2>Add New Fetch Request</h2>
-            <form id="fetch-form">
-                <div class="input-group">
-                    <label for="projectId">Project ID</label>
-                    <input type="text" id="projectId" name="projectId" placeholder="e.g., 6d5ee814-d031-42e3-bdb1-10a9230edc00" required>
+            <div class="modal-layout">
+                <form id="fetch-form" class="form-section">
+                    <div class="input-group">
+                        <label for="projectId">Project ID</label>
+                        <input type="text" id="projectId" name="projectId" placeholder="e.g., 6d5ee814-d031-42e3-bdb1-10a9230edc00" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="environmentId">Environment ID</label>
+                        <input type="text" id="environmentId" name="environmentId" placeholder="e.g., 01c53a71-56d9-4d2c-a8c2-3553b349b865" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="sqlQuery">SQL Query</label>
+                        <textarea id="sqlQuery" name="sqlQuery" rows="5" placeholder="e.g., SELECT SUM(EVENT_JSON:GoodKills::INT + EVENT_JSON:BadKills::INT + EVENT_JSON:BonusKills::INT) AS total_kills FROM EVENTS WHERE EVENT_NAME = 'PlayerWaveData'" required></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label for="requestName">Request Name (for reference)</label>
+                        <input type="text" id="requestName" name="requestName" placeholder="e.g., Total Kills Query">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" id="test-request" class="secondary-btn">Test Request</button>
+                        <button type="submit" class="primary-btn">Add Request</button>
+                    </div>
+                </form>
+                <div class="console-section">
+                    <h3>Test Output Console</h3>
+                    <div id="test-console" class="console-output">
+                        <div class="console-placeholder">Click "Test Request" to see the raw output here...</div>
+                    </div>
                 </div>
-                <div class="input-group">
-                    <label for="environmentId">Environment ID</label>
-                    <input type="text" id="environmentId" name="environmentId" placeholder="e.g., 01c53a71-56d9-4d2c-a8c2-3553b349b865" required>
-                </div>
-                <div class="input-group">
-                    <label for="chartName">Chart Name</label>
-                    <input type="text" id="chartName" name="chartName" placeholder="e.g., sql_de" required>
-                </div>
-                <div class="input-group">
-                    <label for="sqlQuery">SQL Query</label>
-                    <textarea id="sqlQuery" name="sqlQuery" rows="5" placeholder="e.g., SELECT SUM(EVENT_JSON:GoodKills::INT + EVENT_JSON:BadKills::INT + EVENT_JSON:BonusKills::INT) AS total_kills FROM EVENTS WHERE EVENT_NAME = 'PlayerWaveData'" required></textarea>
-                </div>
-                <div class="input-group">
-                    <label for="requestName">Request Name (for reference)</label>
-                    <input type="text" id="requestName" name="requestName" placeholder="e.g., Total Kills Query">
-                </div>
-                <button type="submit" class="primary-btn">Add Request</button>
-            </form>
+            </div>
         </div>
     </div>
 
@@ -65,9 +72,6 @@
     <div class="requests-list-container">
         <h2>Saved Fetch Requests</h2>
         <div id="requests-list"></div>
-        <div class="list-actions">
-            <button id="clear-all" class="danger-btn">Clear All</button>
-        </div>
     </div>
 
     <!-- Instructions -->
@@ -75,9 +79,9 @@
         <h3>How to Use</h3>
         <ul>
             <li>Click "Add New Fetch Request" to open the form and create a new configuration.</li>
-            <li>Fill in the form and click "Add Request" to send it to the server.</li>
+            <li>Fill in the form and click "Test Request" to verify the query works.</li>
+            <li>Click "Add Request" to save it to the server.</li>
             <li>Edit or delete requests from the list as needed.</li>
-            <li>Use "Clear All" to remove all requests from the server.</li>
         </ul>
     </div>
 </div>

@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Threading.Tasks;
 using Utils;
-using KHSAnalytics.KHSAnalytics.KHSAnalytics;
+using KHSAnalytics.KHSAnalytics;
 
 namespace KHSWeb
 {

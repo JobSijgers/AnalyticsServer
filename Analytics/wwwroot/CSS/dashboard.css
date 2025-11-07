@@ -278,3 +278,276 @@
     background: rgba(218, 135, 39, 0.1);
     box-shadow: 0 0 10px rgba(218, 135, 39, 0.5);
 }
+
+/* Add these styles to your existing dashboard.css */
+
+.modal-layout {
+    display: flex;
+    gap: 1.5rem;
+    max-height: 70vh;
+}
+
+.form-section {
+    flex: 1;
+    min-width: 300px;
+}
+
+.console-section {
+    flex: 1;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.console-section h3 {
+    color: rgb(218, 135, 39);
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 5px rgba(218, 135, 39, 0.3);
+}
+
+.console-output {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid rgba(218, 135, 39, 0.3);
+    border-radius: 4px;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: #eee;
+    overflow-y: auto;
+    max-height: 400px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.console-placeholder {
+    color: #888;
+    font-style: italic;
+    text-align: center;
+    padding: 2rem;
+}
+
+.test-result {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.4;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.form-actions .primary-btn,
+.form-actions .secondary-btn {
+    flex: 1;
+}
+
+/* Responsive design for modal layout */
+@media (max-width: 768px) {
+    .modal-layout {
+        flex-direction: column;
+        max-height: 80vh;
+    }
+
+    .form-section,
+    .console-section {
+        min-width: auto;
+    }
+
+    .console-output {
+        max-height: 200px;
+    }
+}
+
+/* Add to your existing dashboard.css */
+
+/* Modal Styles - FIXED */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.show {
+    display: flex;
+}
+
+/* Ensure modal content is properly sized */
+.modal-content {
+    background: rgba(26, 26, 26, 0.95);
+    border: 1px solid rgba(218, 135, 39, 0.3);
+    border-radius: 12px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 900px; /* Increased for two-column layout */
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 30px rgba(218, 135, 39, 0.3);
+    position: relative;
+    animation: pulse-glow 4s ease-in-out infinite;
+}
+
+.modal-layout {
+    display: flex;
+    gap: 1.5rem;
+    max-height: 70vh;
+}
+
+.form-section {
+    flex: 1;
+    min-width: 300px;
+}
+
+.console-section {
+    flex: 1;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.console-section h3 {
+    color: rgb(218, 135, 39);
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 5px rgba(218, 135, 39, 0.3);
+}
+
+.console-output {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid rgba(218, 135, 39, 0.3);
+    border-radius: 4px;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: #eee;
+    overflow-y: auto;
+    max-height: 400px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.console-placeholder {
+    color: #888;
+    font-style: italic;
+    text-align: center;
+    padding: 2rem;
+}
+
+.test-result {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.4;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.form-actions .primary-btn,
+.form-actions .secondary-btn {
+    flex: 1;
+}
+
+/* Button styles to ensure they're clickable */
+.primary-btn, .secondary-btn, .danger-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    font-family: 'Orbitron', 'Roboto', sans-serif;
+    position: relative;
+    z-index: 1;
+}
+
+.primary-btn {
+    background: rgb(218, 135, 39);
+    color: #111;
+}
+
+.primary-btn:hover {
+    background: rgb(255, 165, 0);
+    box-shadow: 0 0 10px rgba(218, 135, 39, 0.7);
+}
+
+.secondary-btn {
+    background: #555;
+    color: #eee;
+}
+
+.secondary-btn:hover {
+    background: #666;
+}
+
+/* Ensure form elements are properly styled */
+#fetch-form .input-group {
+    margin-bottom: 1rem;
+}
+
+#fetch-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #ccc;
+    text-shadow: 0 0 5px rgba(218, 135, 39, 0.3);
+}
+
+#fetch-form input,
+#fetch-form textarea {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(218, 135, 39, 0.3);
+    border-radius: 4px;
+    color: #eee;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+#fetch-form input:focus,
+#fetch-form textarea:focus {
+    outline: none;
+    border-color: rgb(218, 135, 39);
+    box-shadow: 0 0 5px rgba(218, 135, 39, 0.5);
+}
+
+/* Responsive design for modal layout */
+@media (max-width: 768px) {
+    .modal-layout {
+        flex-direction: column;
+        max-height: 80vh;
+    }
+
+    .form-section,
+    .console-section {
+        min-width: auto;
+    }
+
+    .console-output {
+        max-height: 200px;
+    }
+
+    .modal-content {
+        max-width: 95%;
+        padding: 1rem;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+}

@@ -12,8 +12,16 @@ public class FetchRequest
     public string EnvironmentId { get; set; } = string.Empty;
 
     [JsonPropertyName("chartName")]
-    public string ChartName { get; set; } = string.Empty;
+    public string ChartName { get; set; } = "sql_de"; // Default value
 
     [JsonPropertyName("sqlQuery")]
     public string SqlQuery { get; set; } = string.Empty;
+
+    // Add timestamp for last execution
+    [JsonIgnore]
+    public DateTime LastExecuted { get; set; }
+
+    // Add execution count for monitoring
+    [JsonIgnore]
+    public int ExecutionCount { get; set; }
 }
