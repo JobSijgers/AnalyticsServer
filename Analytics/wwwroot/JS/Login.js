@@ -50,21 +50,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Save the token using TokenManager
                 if (tokenManager.setToken(UUID)) {
-                    tokenManager.showToast('Login successful!');
+                    toastManager.success('Login successful!');
                     setTimeout(() => {
                         window.location.href = 'dashboard.html';
                     }, 1000);
                 } else {
-                    tokenManager.showToast('Failed to save login session');
+                    toastManager.error('Failed to save login session');
                 }
             } else {
                 const errorData = await response.json();
-                tokenManager.showToast(`Login failed: ${errorData.message || 'Invalid credentials'}`);
+
+                toastManager.error(`Login failed: ${errorData.message || 'Invalid credentials'}`);
             }
         } catch (error) {
             loadingOverlay.classList.remove('active');
             console.error('Login error:', error);
-            tokenManager.showToast('An error occurred. Please try again.');
+            toastManager.error('An error occurred. Please try again.');
         }
     });
 });

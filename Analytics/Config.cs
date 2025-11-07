@@ -6,4 +6,5 @@
         
     public const string AppUrl = "http://localhost:5000";
     public const int FetchIntervalMs = 3600000;
+    public const string FetchConfigsPath = "fetchConfigs.json";
 }

@@ -207,10 +207,11 @@ class TokenManager {
         };
     }
 
-    // Handle token expiration
     handleTokenExpiration() {
         this.clearToken();
-        this.showToast('Session expired. Please login again.');
+        if (typeof toastManager !== 'undefined') {
+            toastManager.warning('Session expired. Please login again.');
+        }
 
         // Redirect to index if not on index page
         const isIndexPage = window.location.pathname.includes('index.html') ||
@@ -247,32 +248,23 @@ class TokenManager {
         return response;
     }
 
-    // Toast notification method
-    showToast(message) {
-        const toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            console.error('Toast container not found');
-            return;
+    // Add to TokenManager.js class
+    async logout() {
+        try {
+            // Optional: Notify server to invalidate token
+            await fetch('/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...this.getAuthHeader()
+                }
+            });
+        } catch (error) {
+            console.warn('Server logout failed, but local token cleared:', error);
+        } finally {
+            // Always clear local token
+            this.clearToken();
         }
-
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.textContent = message;
-        toast.style.cssText = `
-            background: #333;
-            color: white;
-            padding: 12px 20px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            animation: slideIn 0.3s ease-out;
-        `;
-
-        toastContainer.appendChild(toast);
-        setTimeout(() => {
-            toast.style.animation = 'slideOut 0.3s ease-in';
-            setTimeout(() => toast.remove(), 300);
-        }, 4000);
     }
 }
 
@@ -297,3 +289,5 @@ document.head.appendChild(style);
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = tokenManager;
 }
+
+

@@ -108,19 +108,49 @@ namespace KHSAnalytics
                 private readonly HttpClient _httpClient = new HttpClient();
                 private readonly JsonSerializerOptions _jsonOptions;
 
-                public AnalyticsService(CancellationToken ct)
+                private readonly CancellationToken _cancellationToken;
+                public List<FetchRequest> FetchRequests { get; set; } = new();
+
+                public AnalyticsService(CancellationToken cancellationToken)
                 {
+                    _cancellationToken = cancellationToken;
                     _jsonOptions = new JsonSerializerOptions
                     {
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                        PropertyNameCaseInsensitive = true
+                        PropertyNameCaseInsensitive = true,
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                     };
-
-                    DebugUtils.Print("Initializing AnalyticsService...");
-                    _ = Task.Run(() => FetchLoop(ct));
-                    DebugUtils.PrintSuccess("AnalyticsService initialized successfully.");
+                    LoadFetchRequests(); // Load on initialization
                 }
 
+                private void LoadFetchRequests()
+                {
+                    try
+                    {
+                        if (File.Exists(Config.FetchConfigsPath))
+                        {
+                            var json = File.ReadAllText(Config.FetchConfigsPath);
+                            var data = JsonSerializer.Deserialize<FetchConfigsData>(json, _jsonOptions);
+                            FetchRequests = data?.FetchRequests ?? new List<FetchRequest>();
+                            DebugUtils.Print($"Loaded {FetchRequests.Count} fetch requests from {Config.FetchConfigsPath}");
+                        }
+                        else
+                        {
+                            DebugUtils.Print($"No fetch configs file found at {Config.FetchConfigsPath}, initializing empty list");
+                            FetchRequests = new List<FetchRequest>();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugUtils.PrintError($"Error loading fetch configs: {ex.Message}");
+                        FetchRequests = new List<FetchRequest>();
+                    }
+                }
+
+                public void ReloadFetchRequests()
+                {
+                    LoadFetchRequests(); // Reload from file
+                }
+                
                 private async Task FetchLoop(CancellationToken ct)
                 {
                     DebugUtils.Print("Starting FetchLoop...");
@@ -707,6 +737,11 @@ namespace KHSAnalytics
                         throw;
                     }
                 }
+            }
+            
+            public class FetchConfigsData
+            {
+                public List<FetchRequest> FetchRequests { get; set; } = new();
             }
 
             /// <summary>

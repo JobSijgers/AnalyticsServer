@@ -1,0 +1,25 @@
+{
+  "fetchRequests": [
+    {
+      "name": "dsadsa",
+      "projectId": "dsa",
+      "environmentId": "dsadsa",
+      "chartName": "dsa",
+      "sqlQuery": "dsadsa"
+    },
+    {
+      "name": "dsa",
+      "projectId": "dsa",
+      "environmentId": "dsa",
+      "chartName": "dsa",
+      "sqlQuery": "dsa"
+    },
+    {
+      "name": "dsadsadasdsa",
+      "projectId": "dsadsadsa",
+      "environmentId": "dsadsadsadsa",
+      "chartName": "dsadsadsadsa",
+      "sqlQuery": "dsadsadsadsa"
+    }
+  ]
+}

@@ -13,8 +13,8 @@ window.addEventListener('resize', () => {
 });
 
 const particles = [];
-const particleCount = 100;
-const maxDistance = 100; // Distance for connecting lines
+const particleCount = 200;
+const maxDistance = 200; // Distance for connecting lines
 
 class Particle {
     constructor() {

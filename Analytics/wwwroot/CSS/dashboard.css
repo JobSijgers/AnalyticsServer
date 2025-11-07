@@ -1,7 +1,6 @@
-﻿/* Add to global.css for new elements */
-
-/* Dashboard Specific */
+﻿
 .dashboard-header {
+    position: relative;
     text-align: center;
     margin-bottom: 2rem;
     padding: 1rem;
@@ -9,12 +8,13 @@
     border-radius: 8px;
 }
 
+
 .dashboard-header h1 {
     font-family: 'Orbitron', monospace;
     font-size: 2.5rem;
     margin: 0;
-    color: #00ff88;
-    text-shadow: 0 0 10px #00ff88;
+    color: rgb(218, 135, 39); /* Updated to orange */
+    text-shadow: 0 0 10px rgba(218, 135, 39, 0.7);
 }
 
 .instructions {
@@ -22,7 +22,7 @@
     padding: 1rem;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
-    border-left: 4px solid #00ff88;
+    border-left: 4px solid rgb(218, 135, 39); /* Updated to orange */
 }
 
 .instructions ul {
@@ -34,17 +34,67 @@
     margin-bottom: 0.5rem;
 }
 
-/* Fetch Form */
-.fetch-form-container {
-    background: rgba(0, 0, 0, 0.4);
-    padding: 1.5rem;
-    border-radius: 8px;
+/* Fetch Form Trigger */
+.fetch-form-trigger {
+    text-align: center;
     margin-bottom: 2rem;
 }
 
-.fetch-form-container h2 {
-    color: #00ff88;
+/* Modal Styles - FIXED */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-content {
+    background: rgba(26, 26, 26, 0.95);
+    border: 1px solid rgba(218, 135, 39, 0.3); /* Orange border */
+    border-radius: 12px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 30px rgba(218, 135, 39, 0.3);
+    position: relative;
+    animation: pulse-glow 4s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 30px rgba(218, 135, 39, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 40px rgba(218, 135, 39, 0.5);
+    }
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.5rem;
+    color: rgb(218, 135, 39); /* Orange */
+    cursor: pointer;
+    text-shadow: 0 0 5px rgba(218, 135, 39, 0.3);
+}
+
+.close-btn:hover {
+    color: rgb(255, 165, 0); /* Lighter orange on hover */
+}
+
+.modal-content h2 {
+    color: rgb(218, 135, 39); /* Orange */
     margin-top: 0;
+    text-shadow: 0 0 5px rgba(218, 135, 39, 0.3);
 }
 
 #fetch-form .input-group {
@@ -55,6 +105,7 @@
     display: block;
     margin-bottom: 0.5rem;
     color: #ccc;
+    text-shadow: 0 0 5px rgba(218, 135, 39, 0.3); /* Orange glow */
 }
 
 #fetch-form input,
@@ -62,7 +113,7 @@
     width: 100%;
     padding: 0.75rem;
     background: rgba(255, 255, 255, 0.1);
-    border: 1px solid #444;
+    border: 1px solid rgba(218, 135, 39, 0.3); /* Orange border */
     border-radius: 4px;
     color: #eee;
     font-size: 1rem;
@@ -71,8 +122,8 @@
 #fetch-form input:focus,
 #fetch-form textarea:focus {
     outline: none;
-    border-color: #00ff88;
-    box-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+    border-color: rgb(218, 135, 39); /* Orange */
+    box-shadow: 0 0 5px rgba(218, 135, 39, 0.5);
 }
 
 #fetch-form textarea {
@@ -89,8 +140,9 @@
 }
 
 .requests-list-container h2 {
-    color: #00ff88;
+    color: rgb(218, 135, 39); /* Orange */
     margin-top: 0;
+    text-shadow: 0 0 5px rgba(218, 135, 39, 0.3);
 }
 
 #requests-list {
@@ -104,7 +156,7 @@
     background: rgba(255, 255, 255, 0.05);
     padding: 1rem;
     border-radius: 6px;
-    border: 1px solid #444;
+    border: 1px solid rgba(218, 135, 39, 0.3); /* Orange border */
 }
 
 .request-header {
@@ -154,16 +206,17 @@
     cursor: pointer;
     font-size: 1rem;
     transition: all 0.3s ease;
+    font-family: 'Orbitron', 'Roboto', sans-serif;
 }
 
 .primary-btn {
-    background: #00ff88;
-    color: #000;
+    background: rgb(218, 135, 39); /* Orange */
+    color: #111;
 }
 
 .primary-btn:hover {
-    background: #00cc6a;
-    box-shadow: 0 0 10px #00ff88;
+    background: rgb(255, 165, 0); /* Lighter orange */
+    box-shadow: 0 0 10px rgba(218, 135, 39, 0.7);
 }
 
 .secondary-btn {
@@ -184,24 +237,6 @@
     background: #d32f2f;
 }
 
-/* Toast Updates */
-.toast {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 1rem 1.5rem;
-    border-radius: 6px;
-    z-index: 1000;
-    animation: fadeInOut 5s ease-in-out;
-}
-
-@keyframes fadeInOut {
-    0% { opacity: 0; transform: translateX(100%); }
-    10% { opacity: 1; transform: translateX(0); }
-    90% { opacity: 1; transform: translateX(0); }
-    100% { opacity: 0; transform: translateX(100%); }
-}
-
 /* Responsive */
 @media (max-width: 768px) {
     .page {
@@ -218,4 +253,28 @@
     .list-actions {
         flex-direction: column;
     }
+
+    .modal-content {
+        width: 95%;
+    }
+}
+
+.logout-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: transparent;
+    color: rgb(218, 135, 39);
+    border: 1px solid rgb(218, 135, 39);
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: 'Orbitron', 'Roboto', sans-serif;
+    transition: all 0.3s ease;
+}
+
+.logout-btn:hover {
+    background: rgba(218, 135, 39, 0.1);
+    box-shadow: 0 0 10px rgba(218, 135, 39, 0.5);
 }
