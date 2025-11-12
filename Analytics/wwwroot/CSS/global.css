@@ -1,45 +1,44 @@
 /* ===== Global ===== */
 body {
-    margin: 0;
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(to bottom, #111, #1a1a1a, #222);
-    color: #eee;
-    min-height: 100vh;
-    overflow-x: hidden; /* Prevent horizontal scroll */
-    overflow-y: auto; /* Enable vertical scroll */
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(to bottom, #111, #1a1a1a, #222);
+  color: #eee;
+  min-height: 100vh;
 }
 
 .page {
-    width: 80%;
-    max-width: 1200px;
-    margin: 2rem auto;
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
-    min-height: auto; /* Remove fixed height */
-    overflow: visible; /* Allow content to flow */
-}
-.page.fade-in {
-    opacity: 1;
+  width: 80%;
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding-top: 7rem; /* leaves room for navbar */
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
 }
 
+.page.fade-in {
+  opacity: 1;
+}
+
+/* Status tags */
 .status {
-    padding: 0.2rem 0.6rem;
-    border-radius: 6px;
-    font-size: 0.9rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
 }
 .status.success {
-    background: #2e7d32;
-    color: #fff;
+  background: #2e7d32;
+  color: #fff;
 }
 .status.error {
-    background: #c62828;
-    color: #fff;
+  background: #c62828;
+  color: #fff;
 }
 .status.warning {
-    background: #ef6c00;
-    color: #fff;
+  background: #ef6c00;
+  color: #fff;
 }
 .status.neutral {
-    background: #555;
-    color: #fff;
+  background: #555;
+  color: #fff;
 }

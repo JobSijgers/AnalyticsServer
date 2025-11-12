@@ -1,11 +1,9 @@
-﻿using System.Reflection;
+﻿// Updated WebServer.cs - Add CORS configuration
+using System.Reflection;
 using Utils;
 
 namespace KHSWeb
 {
-    /// <summary>
-    /// Manages the web server lifecycle and endpoint registration.
-    /// </summary>
     public class WebServer
     {
         private WebApplication _app;
@@ -26,7 +24,22 @@ namespace KHSWeb
             {
                 DebugUtils.Print("Initializing web application builder");
                 var builder = WebApplication.CreateBuilder();
+                
+                // Add CORS services
+                builder.Services.AddCors(options =>
+                {
+                    options.AddPolicy("AllowAll", policy =>
+                    {
+                        policy.AllowAnyOrigin()
+                              .AllowAnyMethod()
+                              .AllowAnyHeader();
+                    });
+                });
+
                 var app = builder.Build();
+
+                // Use CORS
+                app.UseCors("AllowAll");
 
                 app.UseDefaultFiles();
                 app.UseStaticFiles();

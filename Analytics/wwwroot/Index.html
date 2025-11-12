@@ -3,53 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link rel="stylesheet" href="CSS/login.css">
-    <link rel="stylesheet" href="CSS/particles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>Analytics Dashboard</title>
+    <link rel="stylesheet" href="CSS/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="no-scroll">
-<!-- Background Canvas for Animation -->
-<canvas id="background-canvas"></canvas>
-<div class="matrix-overlay"></div>
-
-<!-- KnuckleHub Logo -->
-<img src="images/KnucleHub.png" alt="KnuckleHub Logo" class="logo">
-
-<div class="page fade-in">
-    <div class="login-container">
-        <div class="login-panel">
-            <h2 class="login-title">Login</h2>
-            <form id="login-form" method="post" action="/login">
-                <div class="input-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" placeholder="Enter your username" value="KHSAdmin" required>
-                </div>
-                <div class="input-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Enter your password" value="JungleBeef" required>
-                </div>
-                <button type="submit" class="primary-btn">Sign In</button>
-            </form>
-        </div>
+<body>
+<!-- Navigation -->
+<nav class="navbar">
+    <div class="nav-brand">
+        <h1>Analytics Dashboard</h1>
     </div>
+    <div class="nav-links">
+        <button id="refreshBtn" class="btn">Refresh Data</button>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<div class="page fade-in">
+    <!-- Filters Section -->
+    <section class="filters-section">
+        <h2>Filters</h2>
+        <div class="filter-controls">
+            <div class="filter-group">
+                <label for="categoryFilter">Category</label>
+                <select id="categoryFilter" class="filter-select">
+                    <option value="all">All Categories</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="metricKeyFilter">Metric Key</label>
+                <select id="metricKeyFilter" class="filter-select">
+                    <option value="all">All Metric Keys</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="dateRange">Date Range</label>
+                <select id="dateRange" class="filter-select">
+                    <option value="7">Last 7 Days</option>
+                    <option value="30">Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+            </div>
+            <div class="filter-group" id="customDateRange" style="display: none;">
+                <label for="startDate">From</label>
+                <input type="date" id="startDate" class="filter-input">
+                <label for="endDate">To</label>
+                <input type="date" id="endDate" class="filter-input">
+            </div>
+            <button id="applyFilters" class="btn">Apply Filters</button>
+        </div>
+    </section>
+
+    <!-- Summary Cards -->
+    <section class="summary-section">
+        <h2>Overview</h2>
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="card-icon">📊</div>
+                <div class="card-content">
+                    <h3 id="totalMetrics">-</h3>
+                    <p>Total Metrics</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">📈</div>
+                <div class="card-content">
+                    <h3 id="totalCategories">-</h3>
+                    <p>Categories</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">🔑</div>
+                <div class="card-content">
+                    <h3 id="totalMetricKeys">-</h3>
+                    <p>Metric Keys</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">🔄</div>
+                <div class="card-content">
+                    <h3 id="lastUpdated">-</h3>
+                    <p>Last Updated</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Charts Section -->
+    <section class="charts-section">
+        <h2>Metrics by Category</h2>
+        <div class="charts-container">
+            <div class="chart-card">
+                <h3>Category Distribution</h3>
+                <canvas id="categoryChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Over Time</h3>
+                <canvas id="timelineChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Top Metric Keys</h3>
+                <canvas id="metricKeysChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Source Distribution</h3>
+                <canvas id="sourceChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- Data Table Section -->
+    <section class="table-section">
+        <h2>Metrics Data</h2>
+        <div class="table-controls">
+            <input type="text" id="searchTable" placeholder="Search metrics..." class="search-input">
+            <button id="exportData" class="btn">Export Data</button>
+        </div>
+        <div class="table-container">
+            <table id="metricsTable" class="data-table">
+                <thead>
+                <tr>
+                    <th>Metric Key</th>
+                    <th>Category</th>
+                    <th>Value</th>
+                    <th>Source</th>
+                    <th>Timestamp</th>
+                    <th>Project</th>
+                </tr>
+                </thead>
+                <tbody id="metricsTableBody">
+                <!-- Data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+        <div class="table-pagination">
+            <button id="prevPage" class="btn small">Previous</button>
+            <span id="pageInfo">Page 1 of 1</span>
+            <button id="nextPage" class="btn small">Next</button>
+        </div>
+    </section>
 </div>
 
 <!-- Loading Overlay -->
-<div class="loading-overlay">
-    <div class="loader-container">
-        <div class="overlay-loader"></div>
-        <div class="loading-text">Logging in...</div>
-    </div>
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p>Loading data...</p>
 </div>
 
-<!-- Toast Container for Notifications -->
-<div id="toast-container"></div>
-
-<!-- External JavaScript -->
-<script src="JS/TokenManager.js"></script>
-<script src="JS/ToastManager.js"></script>
-<script src="JS/Particles.js"></script>
-<script src="JS/Login.js"></script>
+<script src="JS/Dashboard.js"></script>
 </body>
 </html>
