@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics Dashboard</title>
+    <link rel="stylesheet" href="CSS/global.css">
+    <link rel="stylesheet" href="CSS/buttons.css">
     <link rel="stylesheet" href="CSS/dashboard.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -12,6 +14,12 @@
 <nav class="navbar">
     <div class="nav-brand">
         <h1>Analytics Dashboard</h1>
+        <div class="project-selector">
+            <label for="projectSelect">Project:</label>
+            <select id="projectSelect" class="project-select">
+                <option value="">Loading projects...</option>
+            </select>
+        </div>
     </div>
     <div class="nav-links">
         <button id="refreshBtn" class="btn">Refresh Data</button>
@@ -20,6 +28,31 @@
 
 <!-- Main Content -->
 <div class="page fade-in">
+    <!-- Project Info Banner -->
+    <section class="project-banner" id="projectBanner" style="display: none;">
+        <div class="banner-content">
+            <span class="banner-icon">📊</span>
+            <div class="banner-text">
+                <h3 id="currentProjectName">Project Name</h3>
+                <p id="projectMetricsCount">Loading metrics...</p>
+            </div>
+            <div class="banner-stats">
+                <div class="stat">
+                    <span class="stat-value" id="bannerCategories">-</span>
+                    <span class="stat-label">Categories</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="bannerMetricKeys">-</span>
+                    <span class="stat-label">Metric Keys</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="bannerLastUpdated">-</span>
+                    <span class="stat-label">Last Updated</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Filters Section -->
     <section class="filters-section">
         <h2>Filters</h2>
@@ -39,10 +72,13 @@
             <div class="filter-group">
                 <label for="dateRange">Date Range</label>
                 <select id="dateRange" class="filter-select">
-                    <option value="7">Last 7 Days</option>
+                    <option value="1">Last 24 Hours</option>
+                    <option value="7" selected>Last 7 Days</option>
                     <option value="30">Last 30 Days</option>
                     <option value="90">Last 90 Days</option>
+                    <option value="365">Last Year</option>
                     <option value="custom">Custom Range</option>
+                    <option value="all">All Time</option>
                 </select>
             </div>
             <div class="filter-group" id="customDateRange" style="display: none;">
@@ -51,7 +87,14 @@
                 <label for="endDate">To</label>
                 <input type="date" id="endDate" class="filter-input">
             </div>
-            <button id="applyFilters" class="btn">Apply Filters</button>
+            <div class="filter-group">
+                <label>&nbsp;</label>
+                <button id="applyFilters" class="btn">Apply Filters</button>
+            </div>
+            <div class="filter-group">
+                <label>&nbsp;</label>
+                <button id="clearFilters" class="btn neutral">Clear Filters</button>
+            </div>
         </div>
     </section>
 
@@ -65,12 +108,20 @@
                     <h3 id="totalMetrics">-</h3>
                     <p>Total Metrics</p>
                 </div>
+                <div class="card-trend" id="metricsTrend">
+                    <span class="trend-icon">→</span>
+                    <span class="trend-text">No change</span>
+                </div>
             </div>
             <div class="summary-card">
                 <div class="card-icon">📈</div>
                 <div class="card-content">
                     <h3 id="totalCategories">-</h3>
                     <p>Categories</p>
+                </div>
+                <div class="card-trend" id="categoriesTrend">
+                    <span class="trend-icon">→</span>
+                    <span class="trend-text">No change</span>
                 </div>
             </div>
             <div class="summary-card">
@@ -79,6 +130,10 @@
                     <h3 id="totalMetricKeys">-</h3>
                     <p>Metric Keys</p>
                 </div>
+                <div class="card-trend" id="keysTrend">
+                    <span class="trend-icon">→</span>
+                    <span class="trend-text">No change</span>
+                </div>
             </div>
             <div class="summary-card">
                 <div class="card-icon">🔄</div>
@@ -86,71 +141,191 @@
                     <h3 id="lastUpdated">-</h3>
                     <p>Last Updated</p>
                 </div>
+                <div class="card-trend" id="updateTrend">
+                    <span class="trend-icon">→</span>
+                    <span class="trend-text">Just now</span>
+                </div>
             </div>
         </div>
     </section>
 
     <!-- Charts Section -->
     <section class="charts-section">
-        <h2>Metrics by Category</h2>
-        <div class="charts-container">
+        <div class="section-header">
+            <h2>Metrics Analytics</h2>
+            <div class="chart-controls">
+                <button id="exportCharts" class="btn small">Export Charts</button>
+                <button id="toggleCharts" class="btn small">Toggle Grid/List</button>
+            </div>
+        </div>
+        <div class="charts-container" id="chartsContainer">
             <div class="chart-card">
-                <h3>Category Distribution</h3>
-                <canvas id="categoryChart"></canvas>
+                <div class="chart-header">
+                    <h3>Category Distribution</h3>
+                    <span class="chart-info" title="Distribution of metrics across different categories">ℹ️</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                <div class="chart-legend" id="categoryLegend"></div>
             </div>
             <div class="chart-card">
-                <h3>Metrics Over Time</h3>
-                <canvas id="timelineChart"></canvas>
+                <div class="chart-header">
+                    <h3>Metrics Over Time</h3>
+                    <span class="chart-info" title="Daily metric counts over the selected period">ℹ️</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+                <div class="chart-controls-small">
+                    <button class="btn x-small timeline-zoom" data-days="7">1W</button>
+                    <button class="btn x-small timeline-zoom" data-days="30">1M</button>
+                    <button class="btn x-small timeline-zoom" data-days="90">3M</button>
+                </div>
             </div>
             <div class="chart-card">
-                <h3>Top Metric Keys</h3>
-                <canvas id="metricKeysChart"></canvas>
+                <div class="chart-header">
+                    <h3>Top Metric Keys</h3>
+                    <span class="chart-info" title="Most frequently used metric keys">ℹ️</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="metricKeysChart"></canvas>
+                </div>
+                <div class="chart-legend" id="keysLegend"></div>
             </div>
             <div class="chart-card">
-                <h3>Source Distribution</h3>
-                <canvas id="sourceChart"></canvas>
+                <div class="chart-header">
+                    <h3>Source Distribution</h3>
+                    <span class="chart-info" title="Distribution of metrics by source">ℹ️</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="sourceChart"></canvas>
+                </div>
+                <div class="chart-legend" id="sourceLegend"></div>
             </div>
         </div>
     </section>
 
     <!-- Data Table Section -->
     <section class="table-section">
-        <h2>Metrics Data</h2>
+        <div class="section-header">
+            <h2>Metrics Data</h2>
+            <div class="table-info">
+                <span id="tableSummary">Showing 0 metrics</span>
+            </div>
+        </div>
         <div class="table-controls">
-            <input type="text" id="searchTable" placeholder="Search metrics..." class="search-input">
-            <button id="exportData" class="btn">Export Data</button>
+            <div class="search-group">
+                <input type="text" id="searchTable" placeholder="Search metrics..." class="search-input">
+                <span class="search-icon">🔍</span>
+            </div>
+            <div class="table-actions">
+                <button id="exportData" class="btn">Export CSV</button>
+                <button id="refreshTable" class="btn">Refresh</button>
+            </div>
         </div>
         <div class="table-container">
             <table id="metricsTable" class="data-table">
                 <thead>
                 <tr>
-                    <th>Metric Key</th>
-                    <th>Category</th>
-                    <th>Value</th>
-                    <th>Source</th>
-                    <th>Timestamp</th>
-                    <th>Project</th>
+                    <th data-sort="metricKey">Metric Key
+                        <span class="sort-indicator">↕️</span>
+                    </th>
+                    <th data-sort="category">Category
+                        <span class="sort-indicator">↕️</span>
+                    </th>
+                    <th data-sort="value">Value
+                        <span class="sort-indicator">↕️</span>
+                    </th>
+                    <th data-sort="source">Source
+                        <span class="sort-indicator">↕️</span>
+                    </th>
+                    <th data-sort="timestamp">Timestamp
+                        <span class="sort-indicator">↕️</span>
+                    </th>
+                    <th data-sort="projectId">Project
+                        <span class="sort-indicator">↕️</span>
+                    </th>
+                    <th>Actions</th>
                 </tr>
                 </thead>
                 <tbody id="metricsTableBody">
-                <!-- Data will be populated here -->
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 2rem;">
+                        <div class="empty-state">
+                            <div class="empty-icon">📊</div>
+                            <h3>No metrics data</h3>
+                            <p>Select a project to view metrics data</p>
+                        </div>
+                    </td>
+                </tr>
                 </tbody>
             </table>
         </div>
         <div class="table-pagination">
-            <button id="prevPage" class="btn small">Previous</button>
-            <span id="pageInfo">Page 1 of 1</span>
-            <button id="nextPage" class="btn small">Next</button>
+            <div class="pagination-info">
+                <span id="pageInfo">Page 1 of 1</span>
+                <select id="pageSize" class="page-size-select">
+                    <option value="10">10 per page</option>
+                    <option value="25">25 per page</option>
+                    <option value="50">50 per page</option>
+                    <option value="100">100 per page</option>
+                </select>
+            </div>
+            <div class="pagination-controls">
+                <button id="firstPage" class="btn small" disabled>First</button>
+                <button id="prevPage" class="btn small" disabled>Previous</button>
+                <div class="page-numbers" id="pageNumbers"></div>
+                <button id="nextPage" class="btn small" disabled>Next</button>
+                <button id="lastPage" class="btn small" disabled>Last</button>
+            </div>
         </div>
     </section>
+
+    <!-- Quick Stats Sidebar -->
+    <aside class="sidebar" id="statsSidebar">
+        <div class="sidebar-header">
+            <h3>Quick Stats</h3>
+            <button id="closeSidebar" class="btn x-small">×</button>
+        </div>
+        <div class="sidebar-content">
+            <div class="stat-item">
+                <span class="stat-label">Active Project</span>
+                <span class="stat-value" id="sidebarProject">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Data Range</span>
+                <span class="stat-value" id="sidebarRange">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Filtered Metrics</span>
+                <span class="stat-value" id="sidebarFiltered">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Last Refresh</span>
+                <span class="stat-value" id="sidebarRefresh">-</span>
+            </div>
+        </div>
+    </aside>
 </div>
 
 <!-- Loading Overlay -->
 <div id="loadingOverlay" class="loading-overlay">
     <div class="loading-spinner"></div>
     <p>Loading data...</p>
+    <div class="loading-progress">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <span class="progress-text" id="progressText">0%</span>
+    </div>
 </div>
 
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- Scripts -->
+<script src="JS/ToastManager.js"></script>
 <script src="JS/Dashboard.js"></script>
 </body>
 </html>
