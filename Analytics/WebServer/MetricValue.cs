@@ -71,4 +71,14 @@ namespace KHSWeb.Models
         public int Limit { get; set; } = 100;
         public int Skip { get; set; } = 0;
     }
+    
+    public class DashboardSummary
+    {
+        public List<MetricFrequency> TopMetrics { get; set; } = new List<MetricFrequency>();
+    }
+    public class MetricFrequency
+    {
+        public string MetricKey { get; set; }
+        public int Count { get; set; }
+    }
 }

@@ -14,11 +14,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="wwwroot\HTML\" />
-      <Folder Include="wwwroot\images\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <!-- Entity Framework Core for SQL Server -->
       <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">

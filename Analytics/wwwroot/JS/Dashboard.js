@@ -1,570 +1,386 @@
+// Dashboard JavaScript
 class AnalyticsDashboard {
     constructor() {
+        this.baseUrl = 'http://localhost:5000/api';
         this.currentProject = null;
-        this.projects = [];
-        this.currentFilters = {
-            category: 'all',
-            metricKey: 'all',
-            dateRange: '7',
-            startDate: null,
-            endDate: null
-        };
+        this.currentCategory = null;
+        this.currentData = null;
+        this.pieChart = null;
 
-        this.charts = {};
-        this.currentPage = 1;
-        this.itemsPerPage = 10;
-
-        this.init();
+        this.initializeDashboard();
     }
 
-    async init() {
-        await this.loadProjects();
-        this.setupEventListeners();
-        this.setupFilters();
+    initializeDashboard() {
+        this.bindEvents();
+        this.loadProjects();
+    }
 
-        // Load initial data if projects exist
-        if (this.projects.length > 0) {
-            await this.selectProject(this.projects[0]);
-        }
+    bindEvents() {
+        // Project selection
+        document.getElementById('project-select').addEventListener('change', (e) => {
+            this.currentProject = e.target.value;
+            this.loadCategories();
+        });
+
+        // Date range selection
+        document.getElementById('date-range').addEventListener('change', (e) => {
+            this.handleDateRangeChange(e.target.value);
+        });
+
+        // Refresh button
+        document.getElementById('refresh-btn').addEventListener('click', () => {
+            this.refreshDashboard();
+        });
+
+        // Retry button for error state
+        document.getElementById('retry-btn').addEventListener('click', () => {
+            this.refreshDashboard();
+        });
     }
 
     async loadProjects() {
         try {
-            showLoading();
-            const response = await fetch('/api/projects');
+            this.showLoadingState();
+            const response = await fetch(`${this.baseUrl}/projects`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const data = await response.json();
 
-            this.projects = data.projects || [];
-            this.populateProjectSelector();
-
-            if (this.projects.length === 0) {
-                toastManager.warning('No projects found in the database');
+            if (data.success && data.projects && data.projects.length > 0) {
+                this.populateProjectSelect(data.projects);
+                // Auto-select first project
+                this.currentProject = data.projects[0];
+                document.getElementById('project-select').value = this.currentProject;
+                this.loadCategories();
+            } else {
+                throw new Error('No projects available');
             }
         } catch (error) {
             console.error('Error loading projects:', error);
+            this.showErrorState('Failed to load projects: ' + error.message);
             toastManager.error('Failed to load projects');
-        } finally {
-            hideLoading();
         }
     }
 
-    populateProjectSelector() {
-        const projectHeader = document.querySelector('.nav-brand');
-        if (!projectHeader.querySelector('#projectSelector')) {
-            const selectorHtml = `
-                <div class="project-selector">
-                    <label for="projectSelect">Project:</label>
-                    <select id="projectSelect" class="project-select">
-                        ${this.projects.map(project =>
-                `<option value="${project}">${project}</option>`
-            ).join('')}
-                    </select>
+    populateProjectSelect(projects) {
+        const select = document.getElementById('project-select');
+        select.innerHTML = '';
+
+        projects.forEach(project => {
+            const option = document.createElement('option');
+            option.value = project; // Store original name as value
+            option.textContent = this.cleanProjectName(project); // Display cleaned name
+            select.appendChild(option);
+        });
+    }
+
+    async loadCategories() {
+        if (!this.currentProject) return;
+
+        try {
+            const response = await fetch(`${this.baseUrl}/categories?projectId=${encodeURIComponent(this.currentProject)}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success && data.categories && data.categories.length > 0) {
+                this.populateCategoryChips(data.categories);
+                // Auto-select first category
+                this.currentCategory = data.categories[0];
+                this.updateCategorySelection();
+                this.loadDashboardData();
+            } else {
+                throw new Error('No categories available for this project');
+            }
+        } catch (error) {
+            console.error('Error loading categories:', error);
+            toastManager.error('Failed to load categories');
+        }
+    }
+
+    populateCategoryChips(categories) {
+        const container = document.getElementById('category-chips');
+        container.innerHTML = '';
+
+        categories.forEach(category => {
+            const chip = document.createElement('div');
+            chip.className = 'category-chip';
+            chip.textContent = category;
+            chip.dataset.category = category;
+            chip.addEventListener('click', () => {
+                this.currentCategory = category;
+                this.updateCategorySelection();
+                this.loadDashboardData();
+            });
+            container.appendChild(chip);
+        });
+    }
+
+    updateCategorySelection() {
+        document.querySelectorAll('.category-chip').forEach(chip => {
+            if (chip.dataset.category === this.currentCategory) {
+                chip.classList.add('active');
+            } else {
+                chip.classList.remove('active');
+            }
+        });
+    }
+
+    async loadDashboardData() {
+        if (!this.currentProject || !this.currentCategory) return;
+
+        try {
+            this.showLoadingState();
+
+            // Load summary data
+            const summaryUrl = `${this.baseUrl}/dashboard/summary?projectId=${encodeURIComponent(this.currentProject)}&category=${encodeURIComponent(this.currentCategory)}`;
+            const summaryResponse = await fetch(summaryUrl);
+
+            if (!summaryResponse.ok) {
+                throw new Error(`HTTP error! status: ${summaryResponse.status}`);
+            }
+
+            const summaryData = await summaryResponse.json();
+
+            if (summaryData.success) {
+                this.currentData = summaryData.summary;
+                this.displayMetricBreakdown();
+                this.createPieChart();
+            }
+
+            this.hideLoadingState();
+            this.showDashboardContent();
+            toastManager.success('Dashboard data loaded successfully');
+
+        } catch (error) {
+            console.error('Error loading dashboard data:', error);
+            this.showErrorState('Failed to load dashboard data: ' + error.message);
+            toastManager.error('Failed to load dashboard data');
+        }
+    }
+
+    displayMetricBreakdown() {
+        const container = document.getElementById('metric-breakdown');
+        container.innerHTML = '';
+
+        if (!this.currentData.topMetrics || this.currentData.topMetrics.length === 0) {
+            container.innerHTML = '<div class="breakdown-item">No metric data available</div>';
+            return;
+        }
+
+        const total = this.currentData.topMetrics.reduce((sum, metric) => sum + metric.count, 0);
+
+        this.currentData.topMetrics.forEach(metric => {
+            const percentage = total > 0 ? (metric.count / total) * 100 : 0;
+
+            const item = document.createElement('div');
+            item.className = 'breakdown-item';
+            item.innerHTML = `
+                <div class="breakdown-metric">
+                    <span class="breakdown-name">${this.truncateText(metric.metricKey, 20)}</span>
+                    <span class="breakdown-count">${this.formatNumber(metric.count)}</span>
+                    <div class="breakdown-bar">
+                        <div class="breakdown-fill" style="width: ${percentage}%"></div>
+                    </div>
+                    <span class="breakdown-percentage">${percentage.toFixed(1)}%</span>
                 </div>
             `;
-            projectHeader.innerHTML += selectorHtml;
-
-            // Add project selector styles if not exists
-            this.addProjectSelectorStyles();
-
-            // Add event listener for project changes
-            document.getElementById('projectSelect').addEventListener('change', (e) => {
-                this.selectProject(e.target.value);
-            });
-        }
-    }
-
-    addProjectSelectorStyles() {
-        if (!document.getElementById('project-selector-styles')) {
-            const style = document.createElement('style');
-            style.id = 'project-selector-styles';
-            style.textContent = `
-                .project-selector {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin-left: 2rem;
-                }
-                
-                .project-selector label {
-                    color: #eee;
-                    font-size: 0.9rem;
-                }
-                
-                .project-select {
-                    background: #333;
-                    border: 1px solid rgb(218, 135, 39);
-                    color: #eee;
-                    padding: 0.3rem 0.6rem;
-                    border-radius: 4px;
-                    font-size: 0.9rem;
-                }
-                
-                .project-select:focus {
-                    outline: none;
-                    border-color: rgb(255, 165, 0);
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    }
-
-    async selectProject(projectId) {
-        this.currentProject = projectId;
-        document.getElementById('projectSelect').value = projectId;
-
-        await this.loadAnalytics();
-        await this.loadTableData();
-    }
-
-    async loadAnalytics(filters = {}) {
-        if (!this.currentProject) return;
-
-        try {
-            showLoading();
-
-            const params = new URLSearchParams();
-            if (filters.category && filters.category !== 'all') params.append('category', filters.category);
-            if (filters.metricKey && filters.metricKey !== 'all') params.append('metricKey', filters.metricKey);
-            if (filters.startDate) params.append('startDate', filters.startDate);
-            if (filters.endDate) params.append('endDate', filters.endDate);
-
-            const response = await fetch(`/api/analytics/${this.currentProject}?${params}`);
-            const data = await response.json();
-
-            this.updateSummaryCards(data);
-            this.updateCharts(data);
-            this.updateFilters(data);
-
-        } catch (error) {
-            console.error('Error loading analytics:', error);
-            toastManager.error('Failed to load analytics data');
-        } finally {
-            hideLoading();
-        }
-    }
-
-    updateSummaryCards(data) {
-        document.getElementById('totalMetrics').textContent = data.totalMetrics?.toLocaleString() || '0';
-        document.getElementById('totalCategories').textContent = data.categories?.length || '0';
-        document.getElementById('totalMetricKeys').textContent = data.metricKeys?.length || '0';
-        document.getElementById('lastUpdated').textContent = data.lastUpdated ?
-            new Date(data.lastUpdated).toLocaleDateString() : 'Never';
-    }
-
-    updateCharts(data) {
-        this.updateCategoryChart(data.categoryDistribution);
-        this.updateTimelineChart(data.timelineData);
-        this.updateMetricKeysChart(data.metricKeysDistribution);
-        this.updateSourceChart(data.sourceDistribution);
-    }
-
-    updateCategoryChart(categoryData) {
-        const ctx = document.getElementById('categoryChart').getContext('2d');
-
-        if (this.charts.categoryChart) {
-            this.charts.categoryChart.destroy();
-        }
-
-        this.charts.categoryChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: categoryData?.map(item => item.category) || [],
-                datasets: [{
-                    data: categoryData?.map(item => item.count) || [],
-                    backgroundColor: [
-                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
-                        '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: '#eee'
-                        }
-                    }
-                }
-            }
+            container.appendChild(item);
         });
     }
 
-    updateTimelineChart(timelineData) {
-        const ctx = document.getElementById('timelineChart').getContext('2d');
+    createPieChart() {
+        const canvas = document.getElementById('metrics-pie-chart');
+        const ctx = canvas.getContext('2d');
 
-        if (this.charts.timelineChart) {
-            this.charts.timelineChart.destroy();
+        // Set canvas size to fit container
+        const container = canvas.parentElement;
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+
+        // Destroy existing chart if it exists
+        if (this.pieChart) {
+            this.pieChart.destroy();
         }
 
-        this.charts.timelineChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: timelineData?.map(item => item.date) || [],
-                datasets: [{
-                    label: 'Metrics',
-                    data: timelineData?.map(item => item.count) || [],
-                    borderColor: 'rgb(218, 135, 39)',
-                    backgroundColor: 'rgba(218, 135, 39, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    x: {
-                        grid: { color: '#444' },
-                        ticks: { color: '#eee' }
-                    },
-                    y: {
-                        grid: { color: '#444' },
-                        ticks: { color: '#eee' }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        labels: { color: '#eee' }
-                    }
-                }
-            }
-        });
-    }
-
-    updateMetricKeysChart(metricKeysData) {
-        const ctx = document.getElementById('metricKeysChart').getContext('2d');
-
-        if (this.charts.metricKeysChart) {
-            this.charts.metricKeysChart.destroy();
+        if (!this.currentData.topMetrics || this.currentData.topMetrics.length === 0) {
+            // Display message when no data
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#aaa';
+            ctx.textAlign = 'center';
+            ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+            return;
         }
 
-        this.charts.metricKeysChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: metricKeysData?.map(item => item.metricKey) || [],
-                datasets: [{
-                    label: 'Count',
-                    data: metricKeysData?.map(item => item.count) || [],
-                    backgroundColor: 'rgba(218, 135, 39, 0.8)',
-                    borderColor: 'rgb(218, 135, 39)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    x: {
-                        grid: { color: '#444' },
-                        ticks: { color: '#eee' }
-                    },
-                    y: {
-                        grid: { color: '#444' },
-                        ticks: { color: '#eee' }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        labels: { color: '#eee' }
-                    }
-                }
-            }
-        });
-    }
+        const labels = this.currentData.topMetrics.map(metric => this.truncateText(metric.metricKey, 15));
+        const data = this.currentData.topMetrics.map(metric => metric.count);
+        const total = data.reduce((sum, value) => sum + value, 0);
 
-    updateSourceChart(sourceData) {
-        const ctx = document.getElementById('sourceChart').getContext('2d');
+        // Generate distinct colors for the pie chart
+        const colors = this.generateChartColors(data.length);
 
-        if (this.charts.sourceChart) {
-            this.charts.sourceChart.destroy();
-        }
-
-        this.charts.sourceChart = new Chart(ctx, {
+        this.pieChart = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: sourceData?.map(item => item.source) || [],
+                labels: labels,
                 datasets: [{
-                    data: sourceData?.map(item => item.count) || [],
-                    backgroundColor: [
-                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
-                        '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
-                    ]
+                    data: data,
+                    backgroundColor: colors,
+                    borderColor: '#2a2a2a',
+                    borderWidth: 2,
+                    hoverOffset: 8
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 10,
+                        left: 10,
+                        right: 10
+                    }
+                },
                 plugins: {
                     legend: {
-                        position: 'bottom',
+                        position: 'right',
                         labels: {
-                            color: '#eee'
+                            color: '#eee',
+                            font: {
+                                family: "'Roboto', sans-serif",
+                                size: 12
+                            },
+                            padding: 15,
+                            boxWidth: 12
                         }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        },
+                        backgroundColor: 'rgba(42, 42, 42, 0.95)',
+                        titleColor: '#eee',
+                        bodyColor: '#eee',
+                        borderColor: 'rgb(218, 135, 39)',
+                        borderWidth: 1
                     }
                 }
             }
         });
     }
 
-    updateFilters(data) {
-        this.updateFilterOptions('categoryFilter', data.categories || []);
-        this.updateFilterOptions('metricKeyFilter', data.metricKeys || []);
+    generateChartColors(count) {
+        const baseColors = [
+            'rgb(218, 135, 39)',    // Primary orange
+            'rgb(76, 175, 80)',     // Green
+            'rgb(33, 150, 243)',    // Blue
+            'rgb(156, 39, 176)',    // Purple
+            'rgb(255, 152, 0)',     // Amber
+            'rgb(244, 67, 54)',     // Red
+            'rgb(0, 188, 212)',     // Cyan
+            'rgb(103, 58, 183)',    // Deep purple
+            'rgb(255, 87, 34)',     // Deep orange
+            'rgb(205, 220, 57)'     // Lime
+        ];
+
+        // If we need more colors than available, generate variations
+        if (count <= baseColors.length) {
+            return baseColors.slice(0, count);
+        }
+
+        // Generate additional colors by adjusting hue
+        const colors = [...baseColors];
+        for (let i = baseColors.length; i < count; i++) {
+            const hue = (i * 137.5) % 360; // Golden angle approximation
+            colors.push(`hsl(${hue}, 70%, 50%)`);
+        }
+        return colors;
     }
 
-    updateFilterOptions(selectId, options) {
-        const select = document.getElementById(selectId);
-        const currentValue = select.value;
-
-        // Keep "All" option and update others
-        select.innerHTML = `<option value="all">All ${selectId.replace('Filter', '').replace(/([A-Z])/g, ' $1').trim()}</option>`;
-
-        options.forEach(option => {
-            const optionElement = document.createElement('option');
-            optionElement.value = option;
-            optionElement.textContent = option;
-            select.appendChild(optionElement);
-        });
-
-        // Restore previous selection if it still exists
-        if (options.includes(currentValue)) {
-            select.value = currentValue;
+    handleDateRangeChange(range) {
+        if (range === 'custom') {
+            toastManager.info('Custom date range selection coming soon');
+        } else {
+            this.refreshDashboard();
         }
     }
 
-    setupEventListeners() {
-        // Refresh button
-        document.getElementById('refreshBtn').addEventListener('click', () => {
-            this.loadAnalytics(this.currentFilters);
-        });
-
-        // Filter controls
-        document.getElementById('applyFilters').addEventListener('click', () => {
-            this.applyFilters();
-        });
-
-        // Date range toggle
-        document.getElementById('dateRange').addEventListener('change', (e) => {
-            const customRange = document.getElementById('customDateRange');
-            customRange.style.display = e.target.value === 'custom' ? 'flex' : 'none';
-        });
-
-        // Table pagination
-        document.getElementById('prevPage').addEventListener('click', () => {
-            if (this.currentPage > 1) {
-                this.currentPage--;
-                this.loadTableData();
-            }
-        });
-
-        document.getElementById('nextPage').addEventListener('click', () => {
-            this.currentPage++;
-            this.loadTableData();
-        });
-
-        // Search
-        document.getElementById('searchTable').addEventListener('input', (e) => {
-            clearTimeout(this.searchTimeout);
-            this.searchTimeout = setTimeout(() => {
-                this.currentPage = 1;
-                this.loadTableData(e.target.value);
-            }, 300);
-        });
-
-        // Export
-        document.getElementById('exportData').addEventListener('click', () => {
-            this.exportData();
-        });
-    }
-
-    setupFilters() {
-        // Set default date values for custom range
-        const today = new Date().toISOString().split('T')[0];
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-        document.getElementById('startDate').value = sevenDaysAgo;
-        document.getElementById('endDate').value = today;
-    }
-
-    applyFilters() {
-        const category = document.getElementById('categoryFilter').value;
-        const metricKey = document.getElementById('metricKeyFilter').value;
-        const dateRange = document.getElementById('dateRange').value;
-
-        let startDate = null;
-        let endDate = null;
-
-        if (dateRange === 'custom') {
-            startDate = document.getElementById('startDate').value;
-            endDate = document.getElementById('endDate').value;
-        } else if (dateRange !== 'all') {
-            const days = parseInt(dateRange);
-            startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-            endDate = new Date().toISOString().split('T')[0];
-        }
-
-        this.currentFilters = {
-            category,
-            metricKey,
-            dateRange,
-            startDate,
-            endDate
-        };
-
-        this.currentPage = 1;
-        this.loadAnalytics(this.currentFilters);
-        this.loadTableData();
-    }
-
-    async loadTableData(searchTerm = '') {
-        if (!this.currentProject) return;
-
-        try {
-            showLoading();
-
-            const params = new URLSearchParams({
-                page: this.currentPage.toString(),
-                limit: this.itemsPerPage.toString(),
-                ...this.currentFilters
-            });
-
-            if (searchTerm) {
-                params.append('search', searchTerm);
-            }
-
-            // This would need a new endpoint for paginated table data
-            // For now, we'll use the existing analytics endpoint and client-side filtering
-            const response = await fetch(`/api/analytics/${this.currentProject}?${params}`);
-            const data = await response.json();
-
-            this.updateTable(data.metrics || []);
-            this.updatePagination(data.totalCount || 0);
-
-        } catch (error) {
-            console.error('Error loading table data:', error);
-            toastManager.error('Failed to load table data');
-        } finally {
-            hideLoading();
+    refreshDashboard() {
+        if (this.currentProject && this.currentCategory) {
+            this.loadDashboardData();
+        } else if (this.currentProject) {
+            this.loadCategories();
+        } else {
+            this.loadProjects();
         }
     }
 
-    updateTable(metrics) {
-        const tbody = document.getElementById('metricsTableBody');
-        tbody.innerHTML = '';
+    // Utility methods
+    formatNumber(num) {
+        if (num >= 1000000) {
+            return (num / 1000000).toFixed(1) + 'M';
+        } else if (num >= 1000) {
+            return (num / 1000).toFixed(1) + 'K';
+        }
+        return num.toString();
+    }
 
-        if (metrics.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No metrics found</td></tr>';
-            return;
+    truncateText(text, maxLength) {
+        if (!text) return '';
+        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    }
+
+    // UI state management
+    showLoadingState() {
+        document.getElementById('loading-state').classList.remove('hidden');
+        document.getElementById('error-state').classList.add('hidden');
+        document.getElementById('dashboard-content').classList.add('hidden');
+    }
+
+    hideLoadingState() {
+        document.getElementById('loading-state').classList.add('hidden');
+    }
+
+    showErrorState(message) {
+        document.getElementById('error-message').textContent = message;
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('error-state').classList.remove('hidden');
+        document.getElementById('dashboard-content').classList.add('hidden');
+    }
+
+    showDashboardContent() {
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('error-state').classList.add('hidden');
+        document.getElementById('dashboard-content').classList.remove('hidden');
+    }
+
+    cleanProjectName(projectName) {
+        if (!projectName) return '';
+
+        const underscoreIndex = projectName.indexOf('_');
+        if (underscoreIndex !== -1) {
+            return projectName.substring(underscoreIndex + 1);
         }
 
-        metrics.forEach(metric => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${this.escapeHtml(metric.metricKey)}</td>
-                <td>${this.escapeHtml(metric.category)}</td>
-                <td>${this.formatValue(metric.value)}</td>
-                <td>${this.escapeHtml(metric.source)}</td>
-                <td>${new Date(metric.timestamp).toLocaleString()}</td>
-                <td>${this.escapeHtml(metric.projectId)}</td>
-            `;
-            tbody.appendChild(row);
-        });
+        return projectName;
     }
-
-    updatePagination(totalCount) {
-        const totalPages = Math.ceil(totalCount / this.itemsPerPage);
-        document.getElementById('pageInfo').textContent = `Page ${this.currentPage} of ${totalPages}`;
-
-        document.getElementById('prevPage').disabled = this.currentPage <= 1;
-        document.getElementById('nextPage').disabled = this.currentPage >= totalPages;
-    }
-
-    async exportData() {
-        if (!this.currentProject) {
-            toastManager.warning('Please select a project first');
-            return;
-        }
-
-        try {
-            showLoading();
-
-            const params = new URLSearchParams();
-            if (this.currentFilters.startDate) params.append('startDate', this.currentFilters.startDate);
-            if (this.currentFilters.endDate) params.append('endDate', this.currentFilters.endDate);
-
-            const response = await fetch(`/api/analytics/${this.currentProject}/export?${params}`);
-            const data = await response.json();
-
-            this.downloadAsCSV(data);
-            toastManager.success('Data exported successfully');
-
-        } catch (error) {
-            console.error('Error exporting data:', error);
-            toastManager.error('Failed to export data');
-        } finally {
-            hideLoading();
-        }
-    }
-
-    downloadAsCSV(data) {
-        const headers = ['Metric Key', 'Category', 'Value', 'Source', 'Timestamp', 'Project'];
-        const csvContent = [
-            headers.join(','),
-            ...data.map(metric => [
-                this.escapeCsv(metric.metricKey),
-                this.escapeCsv(metric.category),
-                this.escapeCsv(this.formatValue(metric.value)),
-                this.escapeCsv(metric.source),
-                this.escapeCsv(new Date(metric.timestamp).toISOString()),
-                this.escapeCsv(metric.projectId)
-            ].join(','))
-        ].join('\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `analytics-${this.currentProject}-${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-    }
-
-    escapeHtml(unsafe) {
-        if (unsafe === null || unsafe === undefined) return '';
-        return unsafe.toString()
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
-    escapeCsv(str) {
-        if (str === null || str === undefined) return '';
-        const string = str.toString();
-        if (string.includes(',') || string.includes('"') || string.includes('\n')) {
-            return `"${string.replace(/"/g, '""')}"`;
-        }
-        return string;
-    }
-
-    formatValue(value) {
-        if (!value) return 'N/A';
-        if (typeof value === 'object' && value.value !== undefined) {
-            return value.value;
-        }
-        return value.toString();
-    }
-}
-
-// Utility functions
-function showLoading() {
-    document.getElementById('loadingOverlay').style.display = 'flex';
-}
-
-function hideLoading() {
-    document.getElementById('loadingOverlay').style.display = 'none';
 }
 
 // Initialize dashboard when DOM is loaded
+let dashboard;
 document.addEventListener('DOMContentLoaded', () => {
-    window.dashboard = new AnalyticsDashboard();
+    dashboard = new AnalyticsDashboard();
 });
+

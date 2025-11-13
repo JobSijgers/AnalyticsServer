@@ -1,15 +1,14 @@
-﻿using KHSWeb.Models;
-using KHSWeb.Services;
-using MongoDB.Driver;
+﻿using KHSWeb.Services;
 using Utils;
+using System.Text.Json;
 
 namespace KHSWeb.Endpoints
 {
-    public class ProjectsEndpoint : WebEndpoint
+    public class ProjectListEndpoint : WebEndpoint
     {
         private readonly MongoService _mongoService;
 
-        public ProjectsEndpoint()
+        public ProjectListEndpoint()
         {
             _mongoService = new MongoService();
         }
@@ -20,16 +19,9 @@ namespace KHSWeb.Endpoints
         {
             try
             {
-                var database = Config.GetDatabase();
-                var collection = database.GetCollection<MetricDocument>(Config.MetricsCollectionName);
-                
-                // Get distinct projects
-                var projects = await collection
-                    .Distinct<string>("ProjectId", FilterDefinition<MetricDocument>.Empty)
-                    .ToListAsync();
-
+                var projects = await _mongoService.GetProjectsAsync();
                 DebugUtils.PrintSuccess($"Retrieved {projects.Count} projects");
-                return Results.Ok(new { projects });
+                return Results.Ok(new { projects, success = true });
             }
             catch (Exception ex)
             {

@@ -3,329 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analytics Dashboard</title>
-    <link rel="stylesheet" href="CSS/global.css">
-    <link rel="stylesheet" href="CSS/buttons.css">
-    <link rel="stylesheet" href="CSS/dashboard.css">
+    <title>KHS Analytics Dashboard</title>
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-<!-- Navigation -->
-<nav class="navbar">
-    <div class="nav-brand">
-        <h1>Analytics Dashboard</h1>
-        <div class="project-selector">
-            <label for="projectSelect">Project:</label>
-            <select id="projectSelect" class="project-select">
-                <option value="">Loading projects...</option>
-            </select>
+<!-- Background Canvas -->
+<canvas id="background-canvas"></canvas>
+
+<!-- Navigation Header -->
+<nav class="analytics-nav">
+    <div class="nav-container">
+        <div class="nav-brand">
+            <h1 class="scrolling-gradient">KHS Analytics</h1>
+            <span class="nav-subtitle">Metrics Dashboard</span>
         </div>
-    </div>
-    <div class="nav-links">
-        <button id="refreshBtn" class="btn">Refresh Data</button>
+        <div class="nav-controls">
+            <div class="control-row">
+                <div class="control-group">
+                    <label for="project-select">Project:</label>
+                    <select id="project-select" class="control-select">
+                        <option value="" disabled selected>Loading projects...</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="date-range">Date Range:</label>
+                    <select id="date-range" class="control-select">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="365">Last year</option>
+                        <option value="custom">Custom range</option>
+                    </select>
+                </div>
+                <button id="refresh-btn" class="control-btn">
+                    <span class="btn-icon">↻</span>
+                    Refresh
+                </button>
+            </div>
+        </div>
     </div>
 </nav>
 
-<!-- Main Content -->
-<div class="page fade-in">
-    <!-- Project Info Banner -->
-    <section class="project-banner" id="projectBanner" style="display: none;">
-        <div class="banner-content">
-            <span class="banner-icon">📊</span>
-            <div class="banner-text">
-                <h3 id="currentProjectName">Project Name</h3>
-                <p id="projectMetricsCount">Loading metrics...</p>
-            </div>
-            <div class="banner-stats">
-                <div class="stat">
-                    <span class="stat-value" id="bannerCategories">-</span>
-                    <span class="stat-label">Categories</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-value" id="bannerMetricKeys">-</span>
-                    <span class="stat-label">Metric Keys</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-value" id="bannerLastUpdated">-</span>
-                    <span class="stat-label">Last Updated</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Filters Section -->
-    <section class="filters-section">
-        <h2>Filters</h2>
-        <div class="filter-controls">
-            <div class="filter-group">
-                <label for="categoryFilter">Category</label>
-                <select id="categoryFilter" class="filter-select">
-                    <option value="all">All Categories</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="metricKeyFilter">Metric Key</label>
-                <select id="metricKeyFilter" class="filter-select">
-                    <option value="all">All Metric Keys</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="dateRange">Date Range</label>
-                <select id="dateRange" class="filter-select">
-                    <option value="1">Last 24 Hours</option>
-                    <option value="7" selected>Last 7 Days</option>
-                    <option value="30">Last 30 Days</option>
-                    <option value="90">Last 90 Days</option>
-                    <option value="365">Last Year</option>
-                    <option value="custom">Custom Range</option>
-                    <option value="all">All Time</option>
-                </select>
-            </div>
-            <div class="filter-group" id="customDateRange" style="display: none;">
-                <label for="startDate">From</label>
-                <input type="date" id="startDate" class="filter-input">
-                <label for="endDate">To</label>
-                <input type="date" id="endDate" class="filter-input">
-            </div>
-            <div class="filter-group">
-                <label>&nbsp;</label>
-                <button id="applyFilters" class="btn">Apply Filters</button>
-            </div>
-            <div class="filter-group">
-                <label>&nbsp;</label>
-                <button id="clearFilters" class="btn neutral">Clear Filters</button>
-            </div>
-        </div>
-    </section>
-
-    <!-- Summary Cards -->
-    <section class="summary-section">
-        <h2>Overview</h2>
-        <div class="summary-cards">
-            <div class="summary-card">
-                <div class="card-icon">📊</div>
-                <div class="card-content">
-                    <h3 id="totalMetrics">-</h3>
-                    <p>Total Metrics</p>
-                </div>
-                <div class="card-trend" id="metricsTrend">
-                    <span class="trend-icon">→</span>
-                    <span class="trend-text">No change</span>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="card-icon">📈</div>
-                <div class="card-content">
-                    <h3 id="totalCategories">-</h3>
-                    <p>Categories</p>
-                </div>
-                <div class="card-trend" id="categoriesTrend">
-                    <span class="trend-icon">→</span>
-                    <span class="trend-text">No change</span>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="card-icon">🔑</div>
-                <div class="card-content">
-                    <h3 id="totalMetricKeys">-</h3>
-                    <p>Metric Keys</p>
-                </div>
-                <div class="card-trend" id="keysTrend">
-                    <span class="trend-icon">→</span>
-                    <span class="trend-text">No change</span>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="card-icon">🔄</div>
-                <div class="card-content">
-                    <h3 id="lastUpdated">-</h3>
-                    <p>Last Updated</p>
-                </div>
-                <div class="card-trend" id="updateTrend">
-                    <span class="trend-icon">→</span>
-                    <span class="trend-text">Just now</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Charts Section -->
-    <section class="charts-section">
-        <div class="section-header">
-            <h2>Metrics Analytics</h2>
-            <div class="chart-controls">
-                <button id="exportCharts" class="btn small">Export Charts</button>
-                <button id="toggleCharts" class="btn small">Toggle Grid/List</button>
-            </div>
-        </div>
-        <div class="charts-container" id="chartsContainer">
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3>Category Distribution</h3>
-                    <span class="chart-info" title="Distribution of metrics across different categories">ℹ️</span>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="categoryChart"></canvas>
-                </div>
-                <div class="chart-legend" id="categoryLegend"></div>
-            </div>
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3>Metrics Over Time</h3>
-                    <span class="chart-info" title="Daily metric counts over the selected period">ℹ️</span>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="timelineChart"></canvas>
-                </div>
-                <div class="chart-controls-small">
-                    <button class="btn x-small timeline-zoom" data-days="7">1W</button>
-                    <button class="btn x-small timeline-zoom" data-days="30">1M</button>
-                    <button class="btn x-small timeline-zoom" data-days="90">3M</button>
-                </div>
-            </div>
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3>Top Metric Keys</h3>
-                    <span class="chart-info" title="Most frequently used metric keys">ℹ️</span>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="metricKeysChart"></canvas>
-                </div>
-                <div class="chart-legend" id="keysLegend"></div>
-            </div>
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3>Source Distribution</h3>
-                    <span class="chart-info" title="Distribution of metrics by source">ℹ️</span>
-                </div>
-                <div class="chart-wrapper">
-                    <canvas id="sourceChart"></canvas>
-                </div>
-                <div class="chart-legend" id="sourceLegend"></div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Data Table Section -->
-    <section class="table-section">
-        <div class="section-header">
-            <h2>Metrics Data</h2>
-            <div class="table-info">
-                <span id="tableSummary">Showing 0 metrics</span>
-            </div>
-        </div>
-        <div class="table-controls">
-            <div class="search-group">
-                <input type="text" id="searchTable" placeholder="Search metrics..." class="search-input">
-                <span class="search-icon">🔍</span>
-            </div>
-            <div class="table-actions">
-                <button id="exportData" class="btn">Export CSV</button>
-                <button id="refreshTable" class="btn">Refresh</button>
-            </div>
-        </div>
-        <div class="table-container">
-            <table id="metricsTable" class="data-table">
-                <thead>
-                <tr>
-                    <th data-sort="metricKey">Metric Key
-                        <span class="sort-indicator">↕️</span>
-                    </th>
-                    <th data-sort="category">Category
-                        <span class="sort-indicator">↕️</span>
-                    </th>
-                    <th data-sort="value">Value
-                        <span class="sort-indicator">↕️</span>
-                    </th>
-                    <th data-sort="source">Source
-                        <span class="sort-indicator">↕️</span>
-                    </th>
-                    <th data-sort="timestamp">Timestamp
-                        <span class="sort-indicator">↕️</span>
-                    </th>
-                    <th data-sort="projectId">Project
-                        <span class="sort-indicator">↕️</span>
-                    </th>
-                    <th>Actions</th>
-                </tr>
-                </thead>
-                <tbody id="metricsTableBody">
-                <tr>
-                    <td colspan="7" style="text-align: center; padding: 2rem;">
-                        <div class="empty-state">
-                            <div class="empty-icon">📊</div>
-                            <h3>No metrics data</h3>
-                            <p>Select a project to view metrics data</p>
-                        </div>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="table-pagination">
-            <div class="pagination-info">
-                <span id="pageInfo">Page 1 of 1</span>
-                <select id="pageSize" class="page-size-select">
-                    <option value="10">10 per page</option>
-                    <option value="25">25 per page</option>
-                    <option value="50">50 per page</option>
-                    <option value="100">100 per page</option>
-                </select>
-            </div>
-            <div class="pagination-controls">
-                <button id="firstPage" class="btn small" disabled>First</button>
-                <button id="prevPage" class="btn small" disabled>Previous</button>
-                <div class="page-numbers" id="pageNumbers"></div>
-                <button id="nextPage" class="btn small" disabled>Next</button>
-                <button id="lastPage" class="btn small" disabled>Last</button>
-            </div>
-        </div>
-    </section>
-
-    <!-- Quick Stats Sidebar -->
-    <aside class="sidebar" id="statsSidebar">
-        <div class="sidebar-header">
-            <h3>Quick Stats</h3>
-            <button id="closeSidebar" class="btn x-small">×</button>
-        </div>
-        <div class="sidebar-content">
-            <div class="stat-item">
-                <span class="stat-label">Active Project</span>
-                <span class="stat-value" id="sidebarProject">-</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Data Range</span>
-                <span class="stat-value" id="sidebarRange">-</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Filtered Metrics</span>
-                <span class="stat-value" id="sidebarFiltered">-</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Last Refresh</span>
-                <span class="stat-value" id="sidebarRefresh">-</span>
-            </div>
-        </div>
-    </aside>
-</div>
-
-<!-- Loading Overlay -->
-<div id="loadingOverlay" class="loading-overlay">
-    <div class="loading-spinner"></div>
-    <p>Loading data...</p>
-    <div class="loading-progress">
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressFill"></div>
-        </div>
-        <span class="progress-text" id="progressText">0%</span>
+<!-- Main Dashboard -->
+<main class="dashboard-container">
+    <!-- Loading State -->
+    <div id="loading-state" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading dashboard data...</p>
     </div>
-</div>
 
-<!-- Toast Container -->
-<div id="toast-container"></div>
+    <!-- Error State -->
+    <div id="error-state" class="error-state hidden">
+        <div class="error-icon">⚠️</div>
+        <h3>Unable to load dashboard</h3>
+        <p id="error-message"></p>
+        <button id="retry-btn" class="control-btn">Try Again</button>
+    </div>
 
-<!-- Scripts -->
-<script src="JS/ToastManager.js"></script>
-<script src="JS/Dashboard.js"></script>
+    <!-- Dashboard Content -->
+    <div id="dashboard-content" class="dashboard-content hidden">
+        <!-- Category Filter Chips -->
+        <div class="category-filters">
+            <h3>Categories</h3>
+            <div id="category-chips" class="chips-container">
+                <!-- Category chips will be populated here -->
+            </div>
+        </div>
+
+        <!-- Analytics Grid -->
+        <section class="analytics-grid">
+            <!-- Metric Breakdown with Percentage Bars -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3>Metric Breakdown</h3>
+                </div>
+                <div class="card-content">
+                    <div id="metric-breakdown" class="breakdown-list">
+                        <!-- Metric breakdown items will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pie Chart -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3>Metric Distribution</h3>
+                </div>
+                <div class="card-content chart-content">
+                    <div class="chart-container">
+                        <canvas id="metrics-pie-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<!-- Toast container (managed by ToastManager.js) -->
+<script src="js/ToastManager.js"></script>
+<script src="js/Particles.js"></script>
+<script src="js/Dashboard.js"></script>
 </body>
 </html>

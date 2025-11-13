@@ -1,5 +1,7 @@
-﻿using MongoDB.Driver;
+﻿// [file name]: MongoService.cs (updated)
+using MongoDB.Driver;
 using KHSWeb.Models;
+using System.Text.Json;
 
 namespace KHSWeb.Services
 {
@@ -47,7 +49,7 @@ namespace KHSWeb.Services
             if (!string.IsNullOrEmpty(query.Source))
                 filter &= filterBuilder.Eq(m => m.Source, query.Source);
     
-            if (!string.IsNullOrEmpty(query.ProjectId)) // Added project filter
+            if (!string.IsNullOrEmpty(query.ProjectId))
                 filter &= filterBuilder.Eq(m => m.ProjectId, query.ProjectId);
     
             if (query.StartDate.HasValue)
@@ -96,6 +98,48 @@ namespace KHSWeb.Services
                 .SortByDescending(m => m.Timestamp)
                 .Limit(1000) 
                 .ToListAsync();
+        }
+
+        // New methods for dashboard
+        public async Task<List<string>> GetProjectsAsync()
+        {
+            return await _metrics
+                .Distinct<string>("ProjectId", FilterDefinition<MetricDocument>.Empty)
+                .ToListAsync();
+        }
+
+        public async Task<List<string>> GetCategoriesAsync(string projectId)
+        {
+            var filter = Builders<MetricDocument>.Filter.Eq(m => m.ProjectId, projectId);
+            return await _metrics
+                .Distinct<string>("Category", filter)
+                .ToListAsync();
+        }
+
+        public async Task<DashboardSummary> GetDashboardSummaryAsync(string projectId, string category = null)
+        {
+            var filterBuilder = Builders<MetricDocument>.Filter;
+            var filter = filterBuilder.Eq(m => m.ProjectId, projectId);
+    
+            if (!string.IsNullOrEmpty(category))
+                filter &= filterBuilder.Eq(m => m.Category, category);
+
+            // Get top metrics by frequency (we only need this now)
+            var topMetrics = await _metrics.Aggregate()
+                .Match(filter)
+                .Group(m => m.MetricKey, g => new MetricFrequency 
+                { 
+                    MetricKey = g.Key, 
+                    Count = g.Count() 
+                })
+                .SortByDescending(m => m.Count)
+                .Limit(10) // Increased limit for better chart data
+                .ToListAsync();
+
+            return new DashboardSummary
+            {
+                TopMetrics = topMetrics
+            };
         }
     }
 }
