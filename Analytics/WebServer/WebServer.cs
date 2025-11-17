@@ -1,5 +1,6 @@
 ﻿// Updated WebServer.cs - Add CORS configuration
 using System.Reflection;
+using KHSWeb.Middleware;
 using Utils;
 
 namespace KHSWeb
@@ -24,15 +25,15 @@ namespace KHSWeb
             {
                 DebugUtils.Print("Initializing web application builder");
                 var builder = WebApplication.CreateBuilder();
-                
+        
                 // Add CORS services
                 builder.Services.AddCors(options =>
                 {
                     options.AddPolicy("AllowAll", policy =>
                     {
                         policy.AllowAnyOrigin()
-                              .AllowAnyMethod()
-                              .AllowAnyHeader();
+                            .AllowAnyMethod()
+                            .AllowAnyHeader();
                     });
                 });
 
@@ -40,10 +41,12 @@ namespace KHSWeb
 
                 // Use CORS
                 app.UseCors("AllowAll");
-
+                
                 app.UseDefaultFiles();
                 app.UseStaticFiles();
                 DebugUtils.Print("Static files and default files middleware enabled");
+                
+                app.UseAuthMiddleware();
 
                 DebugUtils.Print("Scanning for WebEndpoint implementations");
                 var endpoints = Assembly.GetExecutingAssembly()

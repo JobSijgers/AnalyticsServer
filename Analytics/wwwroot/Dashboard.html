@@ -1,0 +1,115 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KHS Analytics Dashboard</title>
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<!-- Background Canvas -->
+<canvas id="background-canvas"></canvas>
+
+<!-- Navigation Header -->
+<nav class="analytics-nav">
+    <div class="nav-container">
+        <div class="nav-brand">
+            <h1 class="scrolling-gradient">KHS Analytics</h1>
+            <span class="nav-subtitle">Metrics Dashboard</span>
+        </div>
+        <div class="nav-controls">
+            <div class="control-row">
+                <div class="control-group">
+                    <label for="project-select">Project:</label>
+                    <select id="project-select" class="control-select">
+                        <option value="" disabled selected>Loading projects...</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="date-range">Date Range:</label>
+                    <select id="date-range" class="control-select">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="365">Last year</option>
+                        <option value="custom">Custom range</option>
+                    </select>
+                </div>
+                <button id="refresh-btn" class="control-btn">
+                    <span class="btn-icon">↻</span>
+                    Refresh
+                </button>
+                <button id="logout-btn" class="control-btn secondary">
+                    <span class="btn-icon">🚪</span>
+                    Logout
+                </button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Dashboard -->
+<main class="dashboard-container">
+    <!-- Loading State -->
+    <div id="loading-state" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading dashboard data...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="error-state hidden">
+        <div class="error-icon">⚠️</div>
+        <h3>Unable to load dashboard</h3>
+        <p id="error-message"></p>
+        <button id="retry-btn" class="control-btn">Try Again</button>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div id="dashboard-content" class="dashboard-content hidden">
+        <!-- Category Filter Chips -->
+        <div class="category-filters">
+            <h3>Categories</h3>
+            <div id="category-chips" class="chips-container">
+                <!-- Category chips will be populated here -->
+            </div>
+        </div>
+
+        <!-- Analytics Grid -->
+        <section class="analytics-grid">
+            <!-- Metric Breakdown with Percentage Bars -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3>Metric Breakdown</h3>
+                </div>
+                <div class="card-content">
+                    <div id="metric-breakdown" class="breakdown-list">
+                        <!-- Metric breakdown items will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pie Chart -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3>Metric Distribution</h3>
+                </div>
+                <div class="card-content chart-content">
+                    <div class="chart-container">
+                        <canvas id="metrics-pie-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<!-- Toast container (managed by ToastManager.js) -->
+<script src="js/ToastManager.js"></script>
+<script src="js/TokenManager.js"></script>
+<script src="js/Particles.js"></script>
+<script src="js/Dashboard.js"></script>
+</body>
+</html>
