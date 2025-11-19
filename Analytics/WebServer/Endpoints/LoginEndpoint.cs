@@ -2,6 +2,8 @@
 using KHSWeb.Services;
 using Utils;
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace KHSWeb.Endpoints
 {
@@ -14,7 +16,7 @@ namespace KHSWeb.Endpoints
             try
             {
                 var requestBody = await new StreamReader(context.Request.Body).ReadToEndAsync();
-                DebugUtils.Print($"Login attempt: {requestBody}");
+                DebugUtils.Print($"Login attempt for user");
 
                 var loginRequest = JsonSerializer.Deserialize<LoginRequest>(requestBody, new JsonSerializerOptions
                 {
@@ -26,7 +28,7 @@ namespace KHSWeb.Endpoints
                     return Results.BadRequest(new { success = false, message = "Username and password are required" });
                 }
 
-                // Simple authentication - in production, use proper user validation
+                // Validate with hashed password
                 if (IsValidUser(loginRequest.Username, loginRequest.Password))
                 {
                     var token = TokenManager.CreateToken();
@@ -51,11 +53,9 @@ namespace KHSWeb.Endpoints
             }
         };
 
-        private bool IsValidUser(string username, string password)
+        private bool IsValidUser(string username, string passwordHash)
         {
-            // Simple demo authentication
-            // In production, validate against your user database
-            return username == "admin" && password == "password";
+            return username == Config.Username && passwordHash == Config.PasswordHash;
         }
     }
 

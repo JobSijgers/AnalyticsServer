@@ -1,0 +1,654 @@
+/* Properties Dashboard Specific Styles */
+
+/* Property Details */
+.property-details {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: #aaa;
+    line-height: 1.4;
+}
+
+.property-details small {
+    display: block;
+    margin-bottom: 0.2rem;
+}
+
+.property-details strong {
+    color: #ccc;
+}
+
+/* Card Subtitle */
+.card-subtitle {
+    font-size: 0.8rem;
+    color: #aaa;
+    font-weight: normal;
+}
+
+/* Configuration Modal */
+.config-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+}
+
+.config-modal .modal-content {
+    background: #2a2a2a;
+    border: 1px solid rgb(218, 135, 39);
+    border-radius: 12px;
+    padding: 0;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+/* Configured Charts Section */
+#configured-charts-section {
+    margin-top: 2rem;
+    background: rgba(42, 42, 42, 0.7);
+    border-radius: 8px;
+    padding: 1.5rem;
+    backdrop-filter: blur(5px);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.section-header h3 {
+    margin: 0;
+    color: #eee;
+    font-size: 1.2rem;
+}
+
+/* Configured Charts Grid */
+.configured-charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+}
+
+.chart-widget {
+    background: rgba(42, 42, 42, 0.8);
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chart-widget:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.chart-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.chart-widget-header h4 {
+    margin: 0;
+    color: #eee;
+    font-size: 1.1rem;
+}
+
+.chart-widget-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.chart-widget-actions .table-action {
+    background: rgba(218, 135, 39, 0.2);
+    border: 1px solid rgba(218, 135, 39, 0.5);
+    border-radius: 4px;
+    color: rgb(218, 135, 39);
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.chart-widget-actions .table-action:hover {
+    background: rgba(218, 135, 39, 0.3);
+    border-color: rgb(218, 135, 39);
+    transform: translateY(-1px);
+}
+
+.chart-widget-actions .table-action.delete {
+    background: rgba(244, 67, 54, 0.2);
+    border: 1px solid rgba(244, 67, 54, 0.5);
+    color: rgb(244, 67, 54);
+}
+
+.chart-widget-actions .table-action.delete:hover {
+    background: rgba(244, 67, 54, 0.3);
+    border-color: rgb(244, 67, 54);
+}
+
+.chart-container {
+    height: 300px;
+    position: relative;
+}
+
+.chart-info {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #444;
+}
+
+.chart-info small {
+    color: #aaa;
+    font-size: 0.8rem;
+}
+
+.no-charts {
+    text-align: center;
+    color: #aaa;
+    padding: 3rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border: 2px dashed #444;
+}
+
+/* Modal Styles (for configuration) */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: #2a2a2a;
+    border: 1px solid rgb(218, 135, 39);
+    border-radius: 12px;
+    padding: 0;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #444;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #eee;
+    font-size: 1.3rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #eee;
+}
+
+.modal-body {
+    padding: 1.5rem;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #eee;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: #eee;
+    padding: 0.75rem;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: rgb(218, 135, 39);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.form-group input::placeholder {
+    color: #888;
+}
+
+/* Scrollbar Styling */
+.modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: #333;
+    border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: rgb(218, 135, 39);
+    border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #e69c4a;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .section-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .configured-charts {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .chart-widget {
+        padding: 1rem;
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: 1rem;
+    }
+
+    .chart-widget-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .chart-widget-actions {
+        align-self: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+    #configured-charts-section {
+        padding: 1rem;
+    }
+
+    .configured-charts {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-container {
+        height: 250px;
+    }
+
+    .chart-widget-header h4 {
+        font-size: 1rem;
+    }
+
+    .chart-widget-actions .table-action {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.7rem;
+    }
+}
+
+/* Animation for chart loading */
+@keyframes chartFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chart-widget {
+    animation: chartFadeIn 0.3s ease-out;
+}
+
+/* Enhanced analytics grid for better focus on charts */
+.analytics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .analytics-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Category filters styling */
+.category-filters {
+    margin-bottom: 2rem;
+    background: rgba(42, 42, 42, 0.7);
+    border-radius: 8px;
+    padding: 1.5rem;
+    backdrop-filter: blur(5px);
+}
+
+.category-filters h3 {
+    margin: 0 0 1rem 0;
+    color: #eee;
+    font-size: 1.2rem;
+}
+
+.chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.category-chip {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #555;
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+    color: #ccc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.category-chip:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #777;
+}
+
+.category-chip.active {
+    background: rgba(218, 135, 39, 0.2);
+    border-color: rgb(218, 135, 39);
+    color: rgb(218, 135, 39);
+}
+
+/* Custom Charts Dashboard Styles */
+
+/* Welcome Section */
+.welcome-section {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: rgba(42, 42, 42, 0.7);
+    border-radius: 12px;
+    border: 2px dashed #444;
+    margin: 2rem 0;
+}
+
+.welcome-content h2 {
+    margin: 0 0 1rem 0;
+    color: #eee;
+    font-size: 1.5rem;
+}
+
+.welcome-content p {
+    color: #aaa;
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+.control-btn.large {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+}
+
+/* Charts Section */
+.charts-section {
+    margin-top: 2rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.section-header h3 {
+    margin: 0;
+    color: #eee;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.section-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.control-btn.secondary {
+    background: transparent;
+    border: 1px solid #555;
+    color: #eee;
+}
+
+.control-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #777;
+}
+
+/* Charts Grid */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+}
+
+/* Chart Widget */
+.chart-widget {
+    background: rgba(42, 42, 42, 0.8);
+    border: 1px solid #444;
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.chart-widget:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    border-color: rgb(218, 135, 39);
+}
+
+.chart-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.chart-widget-header h4 {
+    margin: 0;
+    color: #eee;
+    font-size: 1.2rem;
+    font-weight: 600;
+    flex: 1;
+}
+
+.chart-widget-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.chart-container {
+    height: 300px;
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.chart-info {
+    border-top: 1px solid #444;
+    padding-top: 1rem;
+}
+
+.chart-info small {
+    color: #888;
+    font-size: 0.8rem;
+}
+
+/* Modal Styles */
+.modal-content.large {
+    max-width: 800px;
+}
+
+.charts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.chart-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border: 1px solid #444;
+}
+
+.chart-list-info {
+    flex: 1;
+}
+
+.chart-list-name {
+    font-weight: 600;
+    color: #eee;
+    margin-bottom: 0.25rem;
+}
+
+.chart-list-details {
+    font-size: 0.8rem;
+    color: #aaa;
+}
+
+.chart-list-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.no-charts-message {
+    text-align: center;
+    color: #aaa;
+    padding: 3rem;
+    font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .chart-widget {
+        padding: 1rem;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .section-actions {
+        justify-content: center;
+    }
+
+    .chart-list-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .chart-list-actions {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .welcome-section {
+        padding: 2rem 1rem;
+    }
+
+    .welcome-content h2 {
+        font-size: 1.3rem;
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-widget-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .chart-widget-actions {
+        width: 100%;
+        justify-content: center;
+    }
+}

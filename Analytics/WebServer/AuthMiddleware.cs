@@ -1,4 +1,4 @@
-﻿// [file name]: AuthMiddleware.cs
+﻿// [file name]: AuthMiddleware.cs (updated)
 using Utils;
 
 namespace KHSWeb.Middleware
@@ -45,7 +45,41 @@ namespace KHSWeb.Middleware
                 return;
             }
 
-            // Check if this is an API endpoint
+            // Check if this is the batch endpoint - use hardcoded token validation
+            if (path.StartsWithSegments("/api/analytics/batch"))
+            {
+                // Extract token from headers for batch endpoint
+                var token = ExtractToken(context.Request.Headers);
+
+                if (string.IsNullOrEmpty(token))
+                {
+                    DebugUtils.PrintError($"No token provided for batch endpoint: {context.Request.Path}");
+                    context.Response.StatusCode = 401;
+                    await context.Response.WriteAsJsonAsync(new { 
+                        success = false, 
+                        message = "Authentication token required for batch endpoint" 
+                    });
+                    return;
+                }
+
+                // Validate hardcoded token for batch endpoint
+                if (token != Config.UnityClientToken)
+                {
+                    DebugUtils.PrintError($"Invalid hardcoded token for batch endpoint: {context.Request.Path}");
+                    context.Response.StatusCode = 401;
+                    await context.Response.WriteAsJsonAsync(new { 
+                        success = false, 
+                        message = "Invalid token for batch endpoint" 
+                    });
+                    return;
+                }
+
+                DebugUtils.PrintSuccess($"Hardcoded token validated for batch endpoint: {context.Request.Path}");
+                await _next(context);
+                return;
+            }
+
+            // For other API endpoints, use the normal token validation
             if (path.StartsWithSegments("/api"))
             {
                 // Extract token from headers
@@ -62,7 +96,7 @@ namespace KHSWeb.Middleware
                     return;
                 }
 
-                // Validate token
+                // Validate token using TokenManager for non-batch endpoints
                 if (!TokenManager.IsTokenValid(token))
                 {
                     DebugUtils.PrintError($"Invalid token for endpoint: {context.Request.Path}");

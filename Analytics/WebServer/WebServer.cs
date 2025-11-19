@@ -44,10 +44,9 @@ namespace KHSWeb
                 
                 app.UseDefaultFiles();
                 app.UseStaticFiles();
-                DebugUtils.Print("Static files and default files middleware enabled");
-                
-                app.UseAuthMiddleware();
+                DebugUtils.Print("Static files and default files");
 
+                app.UseAuthMiddleware();    
                 DebugUtils.Print("Scanning for WebEndpoint implementations");
                 var endpoints = Assembly.GetExecutingAssembly()
                     .GetTypes()

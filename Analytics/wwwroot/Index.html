@@ -23,30 +23,25 @@
         <form id="login-form" class="login-form">
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" required autocomplete="username">
+                <input type="text" id="username" name="username" value="KHSAdmin" required autocomplete="username">
             </div>
 
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password">
+                <input type="password" id="password" name="password" value="JungleBeef" required autocomplete="current-password">
             </div>
 
             <button type="submit" class="login-btn" id="login-btn">
                 <span class="btn-text">Sign In</span>
-                <div class="btn-spinner hidden"></div>
             </button>
         </form>
-
-        <div id="login-error" class="error-message hidden">
-            Invalid credentials. Please try again.
-        </div>
     </div>
 </div>
 
 <!-- Scripts -->
 <script src="js/ToastManager.js"></script>
-<script src="js/Particles.js"></script>
 <script src="js/TokenManager.js"></script>
+<script src="js/Particles.js"></script>
 <script src="js/Login.js"></script>
 </body>
 </html>

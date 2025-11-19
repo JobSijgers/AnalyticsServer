@@ -6,6 +6,7 @@
     <title>KHS Analytics Dashboard</title>
     <link rel="stylesheet" href="css/global.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/properties-dashboard.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -18,7 +19,7 @@
     <div class="nav-container">
         <div class="nav-brand">
             <h1 class="scrolling-gradient">KHS Analytics</h1>
-            <span class="nav-subtitle">Metrics Dashboard</span>
+            <span class="nav-subtitle">Custom Analytics Dashboard</span>
         </div>
         <div class="nav-controls">
             <div class="control-row">
@@ -35,14 +36,13 @@
                         <option value="30" selected>Last 30 days</option>
                         <option value="90">Last 90 days</option>
                         <option value="365">Last year</option>
-                        <option value="custom">Custom range</option>
                     </select>
                 </div>
                 <button id="refresh-btn" class="control-btn">
                     <span class="btn-icon">↻</span>
                     Refresh
                 </button>
-                <button id="logout-btn" class="control-btn secondary">
+                <button id="logout-btn" class="control-btn logout">
                     <span class="btn-icon">🚪</span>
                     Logout
                 </button>
@@ -56,7 +56,7 @@
     <!-- Loading State -->
     <div id="loading-state" class="loading-state">
         <div class="loading-spinner"></div>
-        <p>Loading dashboard data...</p>
+        <p>Loading dashboard...</p>
     </div>
 
     <!-- Error State -->
@@ -69,47 +69,120 @@
 
     <!-- Dashboard Content -->
     <div id="dashboard-content" class="dashboard-content hidden">
-        <!-- Category Filter Chips -->
-        <div class="category-filters">
-            <h3>Categories</h3>
-            <div id="category-chips" class="chips-container">
-                <!-- Category chips will be populated here -->
+        <!-- Welcome Section for Empty State -->
+        <div id="welcome-section" class="welcome-section">
+            <div class="welcome-content">
+                <h2>Welcome to Your Analytics Dashboard</h2>
+                <p>Get started by creating your first custom chart to visualize your data.</p>
+                <button id="create-first-chart-btn" class="control-btn large">
+                    <span class="btn-icon">📊</span>
+                    Create Your First Chart
+                </button>
             </div>
         </div>
 
-        <!-- Analytics Grid -->
-        <section class="analytics-grid">
-            <!-- Metric Breakdown with Percentage Bars -->
-            <div class="analytics-card">
-                <div class="card-header">
-                    <h3>Metric Breakdown</h3>
-                </div>
-                <div class="card-content">
-                    <div id="metric-breakdown" class="breakdown-list">
-                        <!-- Metric breakdown items will be populated here -->
-                    </div>
+        <!-- Charts Grid -->
+        <section id="charts-section" class="charts-section hidden">
+            <div class="section-header">
+                <h3>Your Analytics</h3>
+                <div class="section-actions">
+                    <button id="manage-charts-btn" class="control-btn secondary">
+                        <span class="btn-icon">⚙️</span>
+                        Manage Charts
+                    </button>
+                    <button id="new-chart-btn" class="control-btn">
+                        <span class="btn-icon">➕</span>
+                        New Chart
+                    </button>
                 </div>
             </div>
-
-            <!-- Pie Chart -->
-            <div class="analytics-card">
-                <div class="card-header">
-                    <h3>Metric Distribution</h3>
-                </div>
-                <div class="card-content chart-content">
-                    <div class="chart-container">
-                        <canvas id="metrics-pie-chart"></canvas>
-                    </div>
-                </div>
+            <div id="charts-grid" class="charts-grid">
+                <!-- Charts will be dynamically populated here -->
             </div>
         </section>
     </div>
 </main>
 
-<!-- Toast container (managed by ToastManager.js) -->
+<!-- Chart Configuration Modal -->
+<div id="config-modal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Configure Chart</h3>
+            <button class="modal-close" id="config-modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="chart-config-form">
+                <div class="form-group">
+                    <label for="config-display-name">Chart Name *</label>
+                    <input type="text" id="config-display-name" required
+                           placeholder="Enter a descriptive name for your chart">
+                </div>
+
+                <div class="form-group">
+                    <label for="config-event-key">Event Key *</label>
+                    <select id="config-event-key" required>
+                        <option value="">Select Event Key</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="config-property">Property to Analyze (Optional)</label>
+                    <select id="config-property">
+                        <option value="">Event Count (default)</option>
+                    </select>
+                    <small>Leave empty to count events, or select a property to analyze its values</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="config-chart-type">Chart Type *</label>
+                    <select id="config-chart-type" required>
+                        <option value="">Select Chart Type</option>
+                        <option value="LineChart">Line Chart</option>
+                        <option value="BarChart">Bar Chart</option>
+                        <option value="PieChart">Pie Chart</option>
+                        <option value="DoughnutChart">Doughnut Chart</option>
+                        <option value="AreaChart">Area Chart</option>
+                        <option value="NumberCard">Number Card</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="config-display-order">Display Order</label>
+                    <input type="number" id="config-display-order" min="0" value="0">
+                    <small>Lower numbers appear first</small>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="control-btn secondary" id="config-cancel-btn">Cancel</button>
+                    <button type="submit" class="control-btn" id="config-save-btn">Save Chart</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Management Modal -->
+<div id="manage-modal" class="modal hidden">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3>Manage Charts</h3>
+            <button class="modal-close" id="manage-modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="charts-list" class="charts-list">
+                <!-- Charts list will be populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="js/ToastManager.js"></script>
 <script src="js/TokenManager.js"></script>
 <script src="js/Particles.js"></script>
-<script src="js/Dashboard.js"></script>
+<script src="js/UIManager.js"></script>
+<script src="js/DataManager.js"></script>
+<script src="js/ChartManager.js"></script>
+<script src="js/ConfigManager.js"></script>
+<script src="js/PropertiesDashboard.js"></script>
 </body>
 </html>

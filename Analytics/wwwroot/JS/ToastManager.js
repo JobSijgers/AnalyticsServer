@@ -164,6 +164,85 @@ class ToastManager {
     neutral(message, duration = 5000) {
         return this.show(message, 'neutral', duration);
     }
+
+    // Configuration methods
+    showConfigModal() {
+        const modal = document.getElementById('config-modal');
+        modal.classList.remove('hidden');
+        this.loadEventKeysForConfig();
+    }
+
+    hideConfigModal() {
+        const modal = document.getElementById('config-modal');
+        modal.classList.add('hidden');
+    }
+
+    async loadEventKeysForConfig() {
+        try {
+            const response = await tokenManager.authenticatedFetch(
+                `${this.baseUrl}/properties/keys?projectId=${encodeURIComponent(this.currentProject)}`
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                const eventKeySelect = document.getElementById('config-event-key');
+                eventKeySelect.innerHTML = '<option value="">Select Event Key</option>';
+
+                data.propertyKeys.forEach(key => {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = key;
+                    eventKeySelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading event keys for config:', error);
+        }
+    }
+
+    async loadChartConfigurations() {
+        try {
+            const response = await tokenManager.authenticatedFetch(
+                `${this.baseUrl}/event-config?projectId=${encodeURIComponent(this.currentProject)}`
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                this.chartConfigs = data.configs || [];
+                this.renderConfiguredCharts();
+            }
+        } catch (error) {
+            console.error('Error loading chart configs:', error);
+        }
+    }
+
+    async renderConfiguredCharts() {
+        const container = document.getElementById('configured-charts');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        for (const config of this.chartConfigs) {
+            const chartData = await this.loadChartData(config);
+            this.createChartElement(container, config, chartData);
+        }
+    }
+
+    async loadChartData(config) {
+        try {
+            const response = await tokenManager.authenticatedFetch(
+                `${this.baseUrl}/dashboard/custom-chart?projectId=${encodeURIComponent(this.currentProject)}&eventKey=${encodeURIComponent(config.eventKey)}&propertyName=${encodeURIComponent(config.propertyToDisplay)}&chartType=${encodeURIComponent(config.chartType)}&days=30`
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.chartData;
+            }
+        } catch (error) {
+            console.error('Error loading chart data:', error);
+        }
+        return null;
+    }
 }
 
 // Create a singleton instance

@@ -5,9 +5,7 @@ class LoginManager {
         this.usernameInput = document.getElementById('username');
         this.passwordInput = document.getElementById('password');
         this.loginBtn = document.getElementById('login-btn');
-        this.errorMessage = document.getElementById('login-error');
         this.btnText = this.loginBtn.querySelector('.btn-text');
-        this.btnSpinner = this.loginBtn.querySelector('.btn-spinner');
 
         this.initializeEventListeners();
         this.checkExistingToken();
@@ -17,13 +15,6 @@ class LoginManager {
         this.loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             this.handleLogin();
-        });
-
-        // Clear error when user starts typing
-        [this.usernameInput, this.passwordInput].forEach(input => {
-            input.addEventListener('input', () => {
-                this.hideError();
-            });
         });
     }
 
@@ -36,28 +27,45 @@ class LoginManager {
         }
     }
 
+    // Hash password using SHA-256
+    async hashPassword(password) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
     async handleLogin() {
         const username = this.usernameInput.value.trim();
         const password = this.passwordInput.value;
 
         if (!username || !password) {
-            this.showError('Please enter both username and password');
+            toastManager.error('Please enter both username and password');
             return;
         }
 
         this.setLoadingState(true);
 
         try {
+            const passwordHash = await this.hashPassword(password);
+
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({
+                    username: username,
+                    password: passwordHash
+                })
             });
+
+            console.log('Login response status:', response.status);
 
             if (response.ok) {
                 const data = await response.json();
+                console.log('Login response data:', data);
 
                 if (data.success && data.token) {
                     // Save token and redirect
@@ -68,15 +76,22 @@ class LoginManager {
                         window.location.href = 'dashboard.html';
                     }, 1000);
                 } else {
-                    this.showError(data.message || 'Login failed');
+                    toastManager.error(data.message || 'Login failed');
                 }
             } else {
-                const errorData = await response.json();
-                this.showError(errorData.message || 'Invalid credentials');
+                // Handle non-OK responses
+                if (response.status === 401) {
+                    toastManager.error('Invalid username or password');
+                } else if (response.status === 400) {
+                    const errorData = await response.json();
+                    toastManager.error(errorData.message || 'Invalid request');
+                } else {
+                    toastManager.error('Login failed. Please try again.');
+                }
             }
         } catch (error) {
             console.error('Login error:', error);
-            this.showError('Network error. Please try again.');
+            toastManager.error('Network error. Please try again.');
         } finally {
             this.setLoadingState(false);
         }
@@ -86,26 +101,10 @@ class LoginManager {
         if (loading) {
             this.loginBtn.disabled = true;
             this.btnText.textContent = 'Signing In...';
-            this.btnSpinner.classList.remove('hidden');
         } else {
             this.loginBtn.disabled = false;
             this.btnText.textContent = 'Sign In';
-            this.btnSpinner.classList.add('hidden');
         }
-    }
-
-    showError(message) {
-        this.errorMessage.textContent = message;
-        this.errorMessage.classList.remove('hidden');
-
-        // Auto-hide error after 5 seconds
-        setTimeout(() => {
-            this.hideError();
-        }, 5000);
-    }
-
-    hideError() {
-        this.errorMessage.classList.add('hidden');
     }
 }
 
