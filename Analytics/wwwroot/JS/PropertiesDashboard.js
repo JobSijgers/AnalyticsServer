@@ -7,7 +7,6 @@ class PropertiesDashboard {
 
         // Initialize managers
         this.uiManager = new UIManager(this);
-        this.dataManager = new DataManager(this);
         this.chartManager = new ChartManager(this);
         this.configManager = new ConfigManager(this);
 

@@ -31,14 +31,10 @@ class UIManager {
         const welcomeSection = document.getElementById('welcome-section');
         const chartsSection = document.getElementById('charts-section');
 
-        console.log('updateDashboardState - chartConfigs length:', this.dashboard.chartConfigs.length);
-
         if (this.dashboard.chartConfigs.length === 0) {
-            console.log('Showing welcome section');
             welcomeSection.classList.remove('hidden');
             chartsSection.classList.add('hidden');
         } else {
-            console.log('Showing charts section');
             welcomeSection.classList.add('hidden');
             chartsSection.classList.remove('hidden');
         }

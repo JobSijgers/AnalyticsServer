@@ -70,23 +70,32 @@ class ConfigManager {
                 const eventKeySelect = document.getElementById('config-event-key');
                 eventKeySelect.innerHTML = '<option value="">Select Event Key</option>';
 
-                data.eventKeys.forEach(key => {
-                    const option = document.createElement('option');
-                    option.value = key;
-                    option.textContent = key;
-                    eventKeySelect.appendChild(option);
-                });
+                // FIX: Properly handle the API response structure
+                if (data.success && data.data && data.data.eventKeys) {
+                    data.data.eventKeys.forEach(key => {
+                        const option = document.createElement('option');
+                        option.value = key;
+                        option.textContent = key;
+                        eventKeySelect.appendChild(option);
+                    });
+                } else {
+                    console.warn('No event keys found in response:', data);
+                    toastManager.warning('No event keys available for this project');
+                }
+            } else {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
         } catch (error) {
             console.error('Error loading event keys for config:', error);
+            toastManager.error('Failed to load event keys');
         }
     }
-    
+
 
     async loadPropertiesForEvent(eventKey) {
         try {
             const response = await tokenManager.authenticatedFetch(
-                `${this.dashboard.baseUrl}/properties/query?projectId=${encodeURIComponent(this.dashboard.currentProject)}&propertyKey=${encodeURIComponent(eventKey)}&limit=10`
+                `${this.dashboard.baseUrl}/events/properties?projectId=${encodeURIComponent(this.dashboard.currentProject)}&eventKey=${encodeURIComponent(eventKey)}`
             );
 
             if (response.ok) {
@@ -94,20 +103,17 @@ class ConfigManager {
                 const propertySelect = document.getElementById('config-property');
                 propertySelect.innerHTML = '<option value="">Event Count (default)</option>';
 
-                // Get unique property keys from the sample events
-                const propertyKeys = new Set();
-                data.properties.forEach(event => {
-                    Object.keys(event.properties).forEach(key => {
-                        propertyKeys.add(key);
+                // FIX: Properly handle the API response structure
+                if (data.success && data.data && data.data.propertyKeys) {
+                    data.data.propertyKeys.forEach(key => {
+                        const option = document.createElement('option');
+                        option.value = key;
+                        option.textContent = key;
+                        propertySelect.appendChild(option);
                     });
-                });
-
-                propertyKeys.forEach(key => {
-                    const option = document.createElement('option');
-                    option.value = key;
-                    option.textContent = key;
-                    propertySelect.appendChild(option);
-                });
+                }
+            } else {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
         } catch (error) {
             console.error('Error loading properties for event:', error);
@@ -294,17 +300,27 @@ class ConfigManager {
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ id: configId, projectId: this.dashboard.currentProject })
+                    body: JSON.stringify({
+                        id: configId,
+                        projectId: this.dashboard.currentProject
+                    })
                 });
 
                 if (response.ok) {
-                    toastManager.success('Chart deleted!');
-                    this.dashboard.loadChartConfigurations();
-                    this.hideManageModal();
+                    const result = await response.json();
+                    if (result.success) {
+                        toastManager.success('Chart deleted!');
+                        this.dashboard.loadChartConfigurations();
+                        this.hideManageModal();
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } else {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
             } catch (error) {
                 console.error('Error deleting chart:', error);
-                toastManager.error('Failed to delete chart');
+                toastManager.error('Failed to delete chart: ' + error.message);
             }
         }
     }

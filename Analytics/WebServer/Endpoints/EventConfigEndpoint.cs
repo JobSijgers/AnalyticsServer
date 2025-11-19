@@ -1,13 +1,24 @@
-﻿using System.Text.Json;
+﻿// EventConfigEndpoint.cs
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using KHSWeb.Models;
-using MongoDB.Driver;
+using KHSWeb.Services; // Add this
 using Utils;
+using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace KHSWeb.Endpoints;
 
 public class EventConfigEndpoint : WebEndpoint
 {
+    private readonly ChartConfigService _configService;
+
+    public EventConfigEndpoint()
+    {
+        _configService = new ChartConfigService();
+    }
+
     public override string Path => "/api/event-config";
     public override METHOD Method => METHOD.GET;
     
@@ -26,12 +37,7 @@ public class EventConfigEndpoint : WebEndpoint
                 }, statusCode: 400);
             }
 
-            var database = Config.GetDatabase();
-            var collection = database.GetCollection<EventDisplayConfig>("EventDisplayConfigs");
-
-            var configs = await collection.Find(c => c.ProjectId == projectId && c.IsEnabled)
-                .SortBy(c => c.DisplayOrder)
-                .ToListAsync();
+            var configs = await _configService.LoadConfigsForProject(projectId);
 
             return Results.Json(new ApiResponse<ChartConfigsResponse>
             {
@@ -51,9 +57,16 @@ public class EventConfigEndpoint : WebEndpoint
     };
 }
 
-// In EventConfigEndpoint.cs - Update the save endpoint
+// Save Event Config Endpoint
 public class SaveEventConfigEndpoint : WebEndpoint
 {
+    private readonly ChartConfigService _configService;
+
+    public SaveEventConfigEndpoint()
+    {
+        _configService = new ChartConfigService();
+    }
+
     public override string Path => "/api/event-config/save";
     public override METHOD Method => METHOD.POST;
     
@@ -61,7 +74,6 @@ public class SaveEventConfigEndpoint : WebEndpoint
     {
         try
         {
-            // Add JSON options to handle enum conversion
             var jsonOptions = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,
@@ -79,24 +91,32 @@ public class SaveEventConfigEndpoint : WebEndpoint
                 }, statusCode: 400);
             }
 
-            var database = Config.GetDatabase();
-            var collection = database.GetCollection<EventDisplayConfig>("EventDisplayConfigs");
+            var allConfigs = await _configService.LoadAllConfigs();
 
             config.UpdatedAt = DateTime.UtcNow;
 
             if (string.IsNullOrEmpty(config.Id))
             {
-                // New config
-                await collection.InsertOneAsync(config);
+                // New config - generate ID
+                config.Id = Guid.NewGuid().ToString();
+                config.CreatedAt = DateTime.UtcNow;
+                allConfigs.Add(config);
             }
             else
             {
                 // Update existing
-                await collection.ReplaceOneAsync(
-                    c => c.Id == config.Id && c.ProjectId == config.ProjectId, 
-                    config
-                );
+                var existingIndex = allConfigs.FindIndex(c => c.Id == config.Id && c.ProjectId == config.ProjectId);
+                if (existingIndex >= 0)
+                {
+                    allConfigs[existingIndex] = config;
+                }
+                else
+                {
+                    allConfigs.Add(config);
+                }
             }
+
+            await _configService.SaveAllConfigs(allConfigs);
 
             return Results.Json(new ApiResponse<SaveConfigResponse>
             {
@@ -116,8 +136,67 @@ public class SaveEventConfigEndpoint : WebEndpoint
     };
 }
 
+// Delete Event Config Endpoint
+public class DeleteEventConfigEndpoint : WebEndpoint
+{
+    private readonly ChartConfigService _configService;
+
+    public DeleteEventConfigEndpoint()
+    {
+        _configService = new ChartConfigService();
+    }
+
+    public override string Path => "/api/event-config/delete";
+    public override METHOD Method => METHOD.POST;
+    
+    public override Delegate Action => async (HttpContext context) =>
+    {
+        try
+        {
+            var request = await context.Request.ReadFromJsonAsync<DeleteConfigRequest>();
+            if (request == null || string.IsNullOrEmpty(request.Id))
+            {
+                return Results.Json(new ApiResponse<object> 
+                { 
+                    Success = false, 
+                    Message = "Invalid request data" 
+                }, statusCode: 400);
+            }
+
+            var allConfigs = await _configService.LoadAllConfigs();
+
+            // Remove the config
+            allConfigs.RemoveAll(c => c.Id == request.Id && c.ProjectId == request.ProjectId);
+
+            await _configService.SaveAllConfigs(allConfigs);
+
+            return Results.Json(new ApiResponse<object>
+            {
+                Success = true
+            });
+        }
+        catch (Exception ex)
+        {
+            DebugUtils.PrintError($"Error deleting event config: {ex.Message}");
+            return Results.Json(new ApiResponse<object>
+            {
+                Success = false,
+                Message = $"Error deleting event config: {ex.Message}"
+            }, statusCode: 500);
+        }
+    };
+}
+
+// Update Order Endpoint
 public class UpdateEventConfigOrderEndpoint : WebEndpoint
 {
+    private readonly ChartConfigService _configService;
+
+    public UpdateEventConfigOrderEndpoint()
+    {
+        _configService = new ChartConfigService();
+    }
+
     public override string Path => "/api/event-config/update-order";
     public override METHOD Method => METHOD.POST;
     
@@ -135,20 +214,19 @@ public class UpdateEventConfigOrderEndpoint : WebEndpoint
                 }, statusCode: 400);
             }
 
-            var database = Config.GetDatabase();
-            var collection = database.GetCollection<EventDisplayConfig>("EventDisplayConfigs");
+            var allConfigs = await _configService.LoadAllConfigs();
 
             foreach (var order in request.Orders)
             {
-                var update = Builders<EventDisplayConfig>.Update
-                    .Set(c => c.DisplayOrder, order.DisplayOrder)
-                    .Set(c => c.UpdatedAt, DateTime.UtcNow);
-
-                await collection.UpdateOneAsync(
-                    c => c.Id == order.Id && c.ProjectId == request.ProjectId,
-                    update
-                );
+                var config = allConfigs.FirstOrDefault(c => c.Id == order.Id && c.ProjectId == request.ProjectId);
+                if (config != null)
+                {
+                    config.DisplayOrder = order.DisplayOrder;
+                    config.UpdatedAt = DateTime.UtcNow;
+                }
             }
+
+            await _configService.SaveAllConfigs(allConfigs);
 
             return Results.Json(new ApiResponse<object>
             {
@@ -167,6 +245,13 @@ public class UpdateEventConfigOrderEndpoint : WebEndpoint
     };
 }
 
+// Request Models
+public class DeleteConfigRequest
+{
+    public string Id { get; set; } = string.Empty;
+    public string ProjectId { get; set; } = string.Empty;
+}
+
 public class UpdateOrderRequest
 {
     public string ProjectId { get; set; } = string.Empty;
@@ -177,4 +262,37 @@ public class ChartOrder
 {
     public string Id { get; set; } = string.Empty;
     public int DisplayOrder { get; set; }
+}
+
+// Response Models
+public class EventKeysResponse
+{
+    public List<string> EventKeys { get; set; } = new List<string>();
+}
+
+public class EventPropertiesResponse
+{
+    public List<string> PropertyKeys { get; set; } = new List<string>();
+}
+
+public class ChartConfigsResponse
+{
+    public List<EventDisplayConfig> Configs { get; set; } = new List<EventDisplayConfig>();
+}
+
+public class SaveConfigResponse
+{
+    public string ConfigId { get; set; } = string.Empty;
+}
+
+public class ChartDataResponse
+{
+    public object ChartData { get; set; } = new();
+}
+
+public class ApiResponse<T>
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public T Data { get; set; } = default!;
 }
