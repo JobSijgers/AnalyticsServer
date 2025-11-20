@@ -31,6 +31,7 @@ class PropertiesDashboard {
         // Project selection
         document.getElementById('project-select').addEventListener('change', (e) => {
             this.currentProject = e.target.value;
+            this.saveCurrentProject(this.currentProject); // NEW: Save selected project
             this.loadChartConfigurations();
         });
 
@@ -68,10 +69,26 @@ class PropertiesDashboard {
         });
     }
 
+    // NEW: Save the current project ID to localStorage
+    saveCurrentProject(projectId) {
+        if (projectId) {
+            localStorage.setItem('khs_analytics_projectId', projectId);
+            console.log(`Saved current project ID: ${projectId}`);
+        } else {
+            localStorage.removeItem('khs_analytics_projectId');
+        }
+    }
+
+    // NEW: Retrieve the saved project ID from localStorage
+    getSavedProject() {
+        return localStorage.getItem('khs_analytics_projectId');
+    }
+
     async handleLogout() {
         try {
             await tokenManager.logout();
             toastManager.success('Logged out successfully');
+            this.saveCurrentProject(null); // Clear saved project on logout
 
             setTimeout(() => {
                 window.location.href = 'index.html';
@@ -97,10 +114,25 @@ class PropertiesDashboard {
 
             if (data.success && data.projects && data.projects.length > 0) {
                 this.uiManager.populateProjectSelect(data.projects);
-                // Auto-select first project
-                this.currentProject = data.projects[0];
+
+                // NEW LOGIC: Check for saved project
+                const savedProject = this.getSavedProject();
+
+                let projectToSelect = data.projects[0];
+
+                if (savedProject && data.projects.includes(savedProject)) {
+                    // Use saved project if it exists in the list
+                    projectToSelect = savedProject;
+                    console.log(`Restoring saved project: ${projectToSelect}`);
+                } else {
+                    // If no saved project or saved project is invalid, use the first one
+                    this.saveCurrentProject(projectToSelect); // Save the default selection
+                }
+
+                this.currentProject = projectToSelect;
                 document.getElementById('project-select').value = this.currentProject;
                 this.loadChartConfigurations();
+
             } else {
                 throw new Error('No projects available');
             }
@@ -157,11 +189,7 @@ class PropertiesDashboard {
 
     // Utility methods
     formatNumber(num) {
-        if (num >= 1000000) {
-            return (num / 1000000).toFixed(1) + 'M';
-        } else if (num >= 1000) {
-            return (num / 1000).toFixed(1) + 'K';
-        }
+        // MODIFIED: Return the full number string without shortening
         return num.toString();
     }
 

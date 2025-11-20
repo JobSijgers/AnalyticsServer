@@ -80,44 +80,7 @@
     font-size: 1.2rem;
 }
 
-/* Configured Charts Grid */
-.configured-charts {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 1.5rem;
-}
-
-.chart-widget {
-    background: rgba(42, 42, 42, 0.8);
-    border: 1px solid #444;
-    border-radius: 8px;
-    padding: 1.5rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.chart-widget:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.chart-widget-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.chart-widget-header h4 {
-    margin: 0;
-    color: #eee;
-    font-size: 1.1rem;
-}
-
-.chart-widget-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
+/* Action Buttons (used inside chart widgets, kept here for dependency) */
 .chart-widget-actions .table-action {
     background: rgba(218, 135, 39, 0.2);
     border: 1px solid rgba(218, 135, 39, 0.5);
@@ -147,22 +110,6 @@
     border-color: rgb(244, 67, 54);
 }
 
-.chart-container {
-    height: 300px;
-    position: relative;
-}
-
-.chart-info {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid #444;
-}
-
-.chart-info small {
-    color: #aaa;
-    font-size: 0.8rem;
-}
-
 .no-charts {
     text-align: center;
     color: #aaa;
@@ -172,7 +119,7 @@
     border: 2px dashed #444;
 }
 
-/* Modal Styles (for configuration) */
+/* Modal Styles (General) */
 .modal {
     position: fixed;
     top: 0;
@@ -236,9 +183,36 @@
 }
 
 .modal-body {
-    padding: 1.5rem;
+    padding: 0;
     max-height: 60vh;
-    overflow-y: auto;
+    overflow: hidden;
+}
+
+/* --- Modal Split Layout (Form/Preview) --- */
+
+.modal-body-split {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px;
+    gap: 20px;
+}
+
+#chart-config-form {
+    flex: 1;
+    min-width: 300px;
+}
+
+#config-preview-column {
+    flex: 2;
+    min-width: 400px;
+}
+
+.modal-box {
+    background-color: #2a2a2a;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* Form Styles */
@@ -255,6 +229,7 @@
 
 .form-group input,
 .form-group select {
+    box-sizing: border-box;
     width: 100%;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid #555;
@@ -276,23 +251,10 @@
     color: #888;
 }
 
-/* Scrollbar Styling */
-.modal-body::-webkit-scrollbar {
-    width: 8px;
-}
-
-.modal-body::-webkit-scrollbar-track {
-    background: #333;
-    border-radius: 4px;
-}
-
-.modal-body::-webkit-scrollbar-thumb {
-    background: rgb(218, 135, 39);
-    border-radius: 4px;
-}
-
-.modal-body::-webkit-scrollbar-thumb:hover {
-    background: #e69c4a;
+.form-group select option {
+    background: #2a2a2a;
+    color: #eee;
+    border: none;
 }
 
 /* Responsive Design */
@@ -302,28 +264,27 @@
         align-items: stretch;
     }
 
-    .configured-charts {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    .chart-widget {
-        padding: 1rem;
-    }
-
     .modal-content {
         width: 95%;
         margin: 1rem;
     }
 
-    .chart-widget-header {
+    .modal-body-split {
         flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
+        gap: 15px;
+        padding: 15px;
     }
 
-    .chart-widget-actions {
-        align-self: flex-end;
+    #chart-config-form,
+    #config-preview-column {
+        min-width: auto;
+        width: 100%;
+        flex: none;
+    }
+
+    .configured-charts {
+        grid-template-columns: 1fr;
+        gap: 1rem;
     }
 }
 
@@ -331,39 +292,6 @@
     #configured-charts-section {
         padding: 1rem;
     }
-
-    .configured-charts {
-        grid-template-columns: 1fr;
-    }
-
-    .chart-container {
-        height: 250px;
-    }
-
-    .chart-widget-header h4 {
-        font-size: 1rem;
-    }
-
-    .chart-widget-actions .table-action {
-        padding: 0.3rem 0.6rem;
-        font-size: 0.7rem;
-    }
-}
-
-/* Animation for chart loading */
-@keyframes chartFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.chart-widget {
-    animation: chartFadeIn 0.3s ease-out;
 }
 
 /* Enhanced analytics grid for better focus on charts */
@@ -423,7 +351,7 @@
     color: rgb(218, 135, 39);
 }
 
-/* Custom Charts Dashboard Styles */
+/* Custom Charts Dashboard Styles (General Layout) */
 
 /* Welcome Section */
 .welcome-section {
@@ -490,165 +418,13 @@
     border-color: #777;
 }
 
-/* Charts Grid */
-.charts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 2rem;
-}
-
-/* Chart Widget */
-.chart-widget {
-    background: rgba(42, 42, 42, 0.8);
-    border: 1px solid #444;
-    border-radius: 12px;
-    padding: 1.5rem;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
-}
-
-.chart-widget:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    border-color: rgb(218, 135, 39);
-}
-
-.chart-widget-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1.5rem;
-}
-
-.chart-widget-header h4 {
-    margin: 0;
-    color: #eee;
-    font-size: 1.2rem;
-    font-weight: 600;
-    flex: 1;
-}
-
-.chart-widget-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.chart-container {
-    height: 300px;
-    position: relative;
-    margin-bottom: 1rem;
-}
-
-.chart-info {
-    border-top: 1px solid #444;
-    padding-top: 1rem;
-}
-
-.chart-info small {
-    color: #888;
-    font-size: 0.8rem;
-}
-
 /* Modal Styles */
 .modal-content.large {
-    max-width: 800px;
+    max-width: 1000px;
 }
 
-.charts-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.chart-list-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    border: 1px solid #444;
-}
-
-.chart-list-info {
-    flex: 1;
-}
-
-.chart-list-name {
-    font-weight: 600;
-    color: #eee;
-    margin-bottom: 0.25rem;
-}
-
-.chart-list-details {
-    font-size: 0.8rem;
-    color: #aaa;
-}
-
-.chart-list-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.no-charts-message {
-    text-align: center;
-    color: #aaa;
-    padding: 3rem;
-    font-style: italic;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .charts-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    .chart-widget {
-        padding: 1rem;
-    }
-
-    .section-header {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .section-actions {
-        justify-content: center;
-    }
-
-    .chart-list-item {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 1rem;
-    }
-
-    .chart-list-actions {
-        justify-content: center;
-    }
-}
-
-@media (max-width: 480px) {
-    .welcome-section {
-        padding: 2rem 1rem;
-    }
-
-    .welcome-content h2 {
-        font-size: 1.3rem;
-    }
-
-    .charts-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .chart-widget-header {
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .chart-widget-actions {
-        width: 100%;
-        justify-content: center;
-    }
+/* Chart Preview Container (in modal) */
+#preview-chart-container {
+    height: 400px;
+    margin-top: 10px;
 }

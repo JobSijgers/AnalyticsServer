@@ -7,14 +7,12 @@
     <link rel="stylesheet" href="css/global.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/properties-dashboard.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/chart-widgets.css"> <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-<!-- Background Canvas -->
 <canvas id="background-canvas"></canvas>
 
-<!-- Navigation Header -->
 <nav class="analytics-nav">
     <div class="nav-container">
         <div class="nav-brand">
@@ -51,15 +49,12 @@
     </div>
 </nav>
 
-<!-- Main Dashboard -->
 <main class="dashboard-container">
-    <!-- Loading State -->
     <div id="loading-state" class="loading-state">
         <div class="loading-spinner"></div>
         <p>Loading dashboard...</p>
     </div>
 
-    <!-- Error State -->
     <div id="error-state" class="error-state hidden">
         <div class="error-icon">⚠️</div>
         <h3>Unable to load dashboard</h3>
@@ -67,9 +62,7 @@
         <button id="retry-btn" class="control-btn">Try Again</button>
     </div>
 
-    <!-- Dashboard Content -->
     <div id="dashboard-content" class="dashboard-content hidden">
-        <!-- Welcome Section for Empty State -->
         <div id="welcome-section" class="welcome-section">
             <div class="welcome-content">
                 <h2>Welcome to Your Analytics Dashboard</h2>
@@ -81,7 +74,6 @@
             </div>
         </div>
 
-        <!-- Charts Grid -->
         <section id="charts-section" class="charts-section hidden">
             <div class="section-header">
                 <h3>Your Analytics</h3>
@@ -97,21 +89,21 @@
                 </div>
             </div>
             <div id="charts-grid" class="charts-grid">
-                <!-- Charts will be dynamically populated here -->
             </div>
         </section>
     </div>
 </main>
 
-<!-- Chart Configuration Modal -->
 <div id="config-modal" class="modal hidden">
-    <div class="modal-content">
+    <div class="modal-content large" style="width: 1000px; max-width: 95vw;">
         <div class="modal-header">
             <h3>Configure Chart</h3>
             <button class="modal-close" id="config-modal-close">&times;</button>
         </div>
-        <div class="modal-body">
-            <form id="chart-config-form">
+
+        <div class="modal-body modal-body-split">
+
+            <form id="chart-config-form" class="modal-box">
                 <div class="form-group">
                     <label for="config-display-name">Chart Name *</label>
                     <input type="text" id="config-display-name" required
@@ -140,8 +132,6 @@
                         <option value="LineChart">Line Chart</option>
                         <option value="BarChart">Bar Chart</option>
                         <option value="PieChart">Pie Chart</option>
-                        <option value="DoughnutChart">Doughnut Chart</option>
-                        <option value="AreaChart">Area Chart</option>
                         <option value="NumberCard">Number Card</option>
                     </select>
                 </div>
@@ -157,11 +147,21 @@
                     <button type="submit" class="control-btn" id="config-save-btn">Save Chart</button>
                 </div>
             </form>
+
+            <div id="config-preview-column" class="modal-box">
+                <h4 style="margin-top: 0;">Live Preview</h4>
+                <div id="preview-chart-container">
+                    <canvas id="preview-chart-canvas"></canvas>
+                </div>
+                <div id="preview-info" style="color: #aaa; font-size: 12px; margin-top: 10px; text-align: center;">
+                    Select an Event Key and Chart Type to see a preview.
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
 
-<!-- Charts Management Modal -->
 <div id="manage-modal" class="modal hidden">
     <div class="modal-content large">
         <div class="modal-header">
@@ -170,7 +170,6 @@
         </div>
         <div class="modal-body">
             <div id="charts-list" class="charts-list">
-                <!-- Charts list will be populated here -->
             </div>
         </div>
     </div>

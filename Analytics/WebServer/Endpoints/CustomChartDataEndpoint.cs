@@ -73,9 +73,8 @@ public class CustomChartDataEndpoint : WebEndpoint
             "piechart" => ProcessPieChart(events, propertyName, isEmptyProperty),
             "barchart" => ProcessBarChart(events, propertyName, isEmptyProperty),
             "numbercard" => ProcessNumberCard(events, propertyName, isEmptyProperty),
-            "donutchart" => ProcessDonutChart(events, propertyName, isEmptyProperty),
-            "areachart" => ProcessAreaChart(events, propertyName, days, isEmptyProperty),
-            _ => ProcessLineChart(events, propertyName, days, isEmptyProperty) // Default
+            
+            _ => ProcessLineChart(events, propertyName, days, isEmptyProperty) // Default to LineChart
         };
     }
 
@@ -110,7 +109,10 @@ public class CustomChartDataEndpoint : WebEndpoint
                 .Select(g => new { 
                     Date = g.Key, 
                     Count = g.Count(),
-                    AvgValue = g.Average(e => Convert.ToDouble(e.PropertiesDict[propertyName] ?? 0))
+                    // FIX: Robustly parse property values to double, filtering out non-numeric entries
+                    AvgValue = g.Where(e => double.TryParse(e.PropertiesDict[propertyName]?.ToString(), out _))
+                                .DefaultIfEmpty() // Needed if the Where filter makes the group empty
+                                .Average(e => e != null ? double.Parse(e.PropertiesDict[propertyName]?.ToString() ?? "0") : 0)
                 })
                 .OrderBy(x => x.Date)
                 .ToList();
@@ -143,13 +145,39 @@ public class CustomChartDataEndpoint : WebEndpoint
         }
         else
         {
-            // Show property value distribution
-            var distribution = events
+            // FIX: Flatten array values before calculating distribution
+            var allPropertyValues = events
                 .Where(e => e.PropertiesDict.ContainsKey(propertyName))
-                .GroupBy(e => e.PropertiesDict[propertyName]?.ToString() ?? "Unknown")
+                .SelectMany(e =>
+                {
+                    var propValue = e.PropertiesDict[propertyName];
+                    if (propValue is string s && s.StartsWith("[\"") && s.EndsWith("\"]"))
+                    {
+                        // Simple array string-to-list-of-strings attempt
+                        try
+                        {
+                            // A quick (and risky) deserialization/parsing for the array string format 
+                            // e.g. ["PillarFall","VineClimbing"] -> "PillarFall", "VineClimbing"
+                            var arrayString = s.Trim('[', ']').Replace("\"", "");
+                            return arrayString.Split(',').Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim());
+                        }
+                        catch
+                        {
+                            // Fallback to treat it as a single string if parsing fails
+                            return new[] { s };
+                        }
+                    }
+                    // For non-array values, treat as a single string/value
+                    return new[] { propValue?.ToString() ?? "Unknown" };
+                })
+                .ToList();
+
+            // Show property value distribution from the flattened list
+            var distribution = allPropertyValues
+                .GroupBy(key => key)
                 .Select(g => new { label = g.Key, value = g.Count() })
                 .OrderByDescending(x => x.value)
-                .Take(8) // Limit to top 8 values
+                .Take(25) // Limit is 25
                 .ToList();
 
             return new { type = "pie", data = distribution };
@@ -165,20 +193,46 @@ public class CustomChartDataEndpoint : WebEndpoint
                 .GroupBy(e => e.Timestamp.Date)
                 .Select(g => new { label = g.Key.ToString("MMM dd"), value = g.Count() })
                 .OrderBy(x => x.label)
-                .Take(14) // Last 14 days
+                .Take(25) // Limit is 25
                 .ToList();
 
             return new { type = "bar", data = dailyCounts };
         }
         else
         {
-            // Show property value distribution
-            var distribution = events
+            // FIX: Flatten array values before calculating distribution
+            var allPropertyValues = events
                 .Where(e => e.PropertiesDict.ContainsKey(propertyName))
-                .GroupBy(e => e.PropertiesDict[propertyName]?.ToString() ?? "Unknown")
+                .SelectMany(e =>
+                {
+                    var propValue = e.PropertiesDict[propertyName];
+                    if (propValue is string s && s.StartsWith("[\"") && s.EndsWith("\"]"))
+                    {
+                        // Simple array string-to-list-of-strings attempt
+                        try
+                        {
+                            // A quick (and risky) deserialization/parsing for the array string format 
+                            // e.g. ["PillarFall","VineClimbing"] -> "PillarFall", "VineClimbing"
+                            var arrayString = s.Trim('[', ']').Replace("\"", "");
+                            return arrayString.Split(',').Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim());
+                        }
+                        catch
+                        {
+                            // Fallback to treat it as a single string if parsing fails
+                            return new[] { s };
+                        }
+                    }
+                    // For non-array values, treat as a single string/value
+                    return new[] { propValue?.ToString() ?? "Unknown" };
+                })
+                .ToList();
+
+            // Show property value distribution from the flattened list
+            var distribution = allPropertyValues
+                .GroupBy(key => key)
                 .Select(g => new { label = g.Key, value = g.Count() })
                 .OrderByDescending(x => x.value)
-                .Take(10)
+                .Take(25) // Limit is 25
                 .ToList();
 
             return new { type = "bar", data = distribution };
@@ -191,58 +245,43 @@ public class CustomChartDataEndpoint : WebEndpoint
         {
             return new { 
                 type = "number", 
-                data = new { total = events.Count } 
+                data = new { 
+                    total = events.Count,
+                    // New fields initialized to 0 for consistency
+                    sumValue = 0.0,
+                    avgValue = 0.0 
+                } 
             };
         }
         else
         {
             var withProperty = events.Count(e => e.PropertiesDict.ContainsKey(propertyName));
-            var uniqueValues = events
+            
+            // Filter, parse, and calculate sum/average of the property values
+            var numericProperties = events
                 .Where(e => e.PropertiesDict.ContainsKey(propertyName))
                 .Select(e => e.PropertiesDict[propertyName]?.ToString())
-                .Distinct()
-                .Count();
+                .Where(s => double.TryParse(s, out _))
+                .Select(s => double.Parse(s))
+                .ToList();
+
+            var sumValue = numericProperties.Sum();
+            var avgValue = numericProperties.Any() ? numericProperties.Average() : 0.0;
+
+            var uniqueValues = numericProperties.Distinct().Count();
 
             return new { 
                 type = "number", 
                 data = new { 
                     total = events.Count,
-                    withProperty,
+                    withProperty, // Indicates how many events had the property
                     uniqueValues,
-                    coverage = events.Count > 0 ? (withProperty * 100.0 / events.Count) : 0
+                    coverage = events.Count > 0 ? (withProperty * 100.0 / events.Count) : 0,
+                    // Return sum and average
+                    sumValue = sumValue,
+                    avgValue = avgValue
                 }
             };
         }
-    }
-
-    private object ProcessDonutChart(List<AnalyticEventDocument> events, string propertyName, bool isEmptyProperty)
-    {
-        // Same logic as pie chart
-        var pieData = ProcessPieChart(events, propertyName, isEmptyProperty);
-        return new { type = "doughnut", data = ((dynamic)pieData).data };
-    }
-
-    private object ProcessAreaChart(List<AnalyticEventDocument> events, string propertyName, int days, bool isEmptyProperty)
-    {
-        // Cumulative events over time
-        var dailyCounts = events
-            .GroupBy(e => e.Timestamp.Date)
-            .Select(g => new { Date = g.Key, Count = g.Count() })
-            .OrderBy(x => x.Date)
-            .ToList();
-
-        // Fill in missing days and calculate cumulative sum
-        var result = new List<object>();
-        var cumulative = 0;
-        
-        for (var i = 0; i < days; i++)
-        {
-            var date = DateTime.UtcNow.Date.AddDays(-days + i + 1);
-            var dailyCount = dailyCounts.FirstOrDefault(d => d.Date == date)?.Count ?? 0;
-            cumulative += dailyCount;
-            result.Add(new { date = date.ToString("MMM dd"), count = cumulative });
-        }
-
-        return new { type = "line", data = result }; // Area chart is just a filled line chart
     }
 }

@@ -3,6 +3,7 @@ class ChartManager {
     constructor(dashboard) {
         this.dashboard = dashboard;
         this.pieChart = null;
+        this.activeCharts = {}; // Store active Chart.js instances by canvas ID
     }
 
     createPropertyDistributionChart() {
@@ -19,6 +20,12 @@ class ChartManager {
         // Destroy existing chart if it exists
         if (this.pieChart) {
             this.pieChart.destroy();
+        }
+
+        // This is a legacy chart method; ensure it doesn't conflict with dynamic ones
+        if (this.activeCharts['properties-chart']) {
+            this.activeCharts['properties-chart'].destroy();
+            delete this.activeCharts['properties-chart'];
         }
 
         if (!this.dashboard.currentData.topProperties || this.dashboard.currentData.topProperties.length === 0) {
@@ -123,6 +130,24 @@ class ChartManager {
         return colors;
     }
 
+    // Utility to clear a canvas context (used for preview)
+    clearCanvas(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const chartInstance = this.activeCharts[canvasId];
+
+        if (chartInstance) {
+            chartInstance.destroy();
+            delete this.activeCharts[canvasId];
+        } else {
+            // Clear manually if no Chart.js instance exists (e.g., for Number Card message)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
+
     renderChart(canvasId, chartData, chartType) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
@@ -131,44 +156,126 @@ class ChartManager {
 
         // Set canvas size
         const container = canvas.parentElement;
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight;
+
+        let newWidth = container.clientWidth;
+        let newHeight = container.clientHeight;
+
+        // FIX: Robust canvas sizing for Number Cards
+        if (chartType === 'NumberCard' && newHeight === 0) {
+            // Assuming container style for number card is 150px height
+            newHeight = 150;
+            if (newWidth === 0) {
+                newWidth = container.offsetWidth > 0 ? container.offsetWidth : 200;
+            }
+        }
+
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+
+        // FIX: Destroy existing chart instance on this canvas before creating a new one
+        if (this.activeCharts[canvasId]) {
+            this.activeCharts[canvasId].destroy();
+            delete this.activeCharts[canvasId];
+        }
+
 
         if (chartType === 'NumberCard') {
             this.renderNumberCard(ctx, chartData, canvas.width, canvas.height);
         } else {
-            this.renderChartJsChart(ctx, chartData, chartType);
+            const dataArray = chartData.data || [];
+            const hasData = dataArray.length > 0;
+
+            // Check if there is meaningful data (i.e., not just an array of zeros)
+            let isMeaningful = false;
+
+            if (hasData) {
+                if (chartType === 'LineChart') {
+                    // Check if sum of all time series values (count or value) is > 0
+                    isMeaningful = dataArray.some(item => (item.count || item.value) > 0);
+                } else if (chartType === 'BarChart' || chartType === 'PieChart') {
+                    // Check if sum of all distribution values is > 0
+                    isMeaningful = dataArray.some(item => item.value > 0);
+                }
+            }
+
+            if (isMeaningful) {
+                this.renderChartJsChart(ctx, chartData, chartType, canvasId);
+            } else {
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#aaa';
+                ctx.textAlign = 'center';
+                ctx.fillText('No meaningful data found for this period.', canvas.width / 2, canvas.height / 2);
+            }
         }
     }
 
     renderNumberCard(ctx, data, width, height) {
-        const total = data.data?.total || 0;
+        // Fallback for formatNumber if the dashboard utility fails (robustness)
+        const localFormatNumber = (num) => {
+            // Always return full number string as requested by user
+            return num.toString();
+        };
+
+        // Ensure canvas is cleared before drawing custom elements
+        ctx.clearRect(0, 0, width, height);
+
+        const cardData = data?.data;
+        if (!cardData) {
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#aaa';
+            ctx.textAlign = 'center';
+            ctx.fillText('No data found', width / 2, height / 2);
+            return;
+        }
+
+        // NEW LOGIC: Determine what to display (Sum of Property or Total Events)
+        const showSum = cardData.sumValue !== undefined && cardData.sumValue !== 0;
+        const valueToDisplay = showSum ? cardData.sumValue : cardData.total;
+        const labelToDisplay = showSum ? 'Sum of Properties' : 'Total Events';
+
+        if (valueToDisplay === 0 && cardData.total === 0) {
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#aaa';
+            ctx.textAlign = 'center';
+            ctx.fillText('No events found', width / 2, height / 2);
+            return;
+        }
+
+        // Use the dashboard formatNumber if available, otherwise use local fallback
+        const formatter = this.dashboard.formatNumber || localFormatNumber;
+        const formattedValue = formatter(valueToDisplay);
 
         ctx.fillStyle = '#eee';
-        ctx.font = 'bold 48px Arial';
+        ctx.font = 'bold 48px Orbitron, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(total.toString(), width / 2, height / 2);
+        ctx.fillText(formattedValue, width / 2, height / 2);
 
         ctx.fillStyle = '#aaa';
-        ctx.font = '16px Arial';
-        ctx.fillText('Total Events', width / 2, height / 2 + 30);
+        ctx.font = '16px Roboto, sans-serif';
+        // NEW: Display dynamic label
+        ctx.fillText(labelToDisplay, width / 2, height / 2 + 30);
     }
 
-    renderChartJsChart(ctx, chartData, chartType) {
+    renderChartJsChart(ctx, chartData, chartType, canvasId) {
         let chartConfig;
 
-        if (chartType === 'LineChart' || chartType === 'AreaChart') {
+        // Line Charts
+        if (chartType === 'LineChart') {
+
+            // Determine whether to use 'value' (for property analysis) or 'count' (for event count)
+            const valueField = chartData.data?.some(item => item.value !== undefined && item.value !== 0) ? 'value' : 'count';
+
             chartConfig = {
-                type: chartType === 'AreaChart' ? 'line' : 'line',
+                type: 'line',
                 data: {
                     labels: chartData.data?.map(item => item.date) || [],
                     datasets: [{
-                        label: 'Count',
-                        data: chartData.data?.map(item => item.count) || [],
-                        backgroundColor: chartType === 'AreaChart' ? 'rgba(218, 135, 39, 0.2)' : 'rgb(218, 135, 39)',
+                        label: valueField === 'value' ? 'Average Value' : 'Event Count',
+                        data: chartData.data?.map(item => item[valueField]) || [], // Use the dynamic field
+                        backgroundColor: 'rgb(218, 135, 39)', // Use solid color for line
                         borderColor: 'rgb(218, 135, 39)',
                         borderWidth: 2,
-                        fill: chartType === 'AreaChart'
+                        fill: false
                     }]
                 },
                 options: {
@@ -201,14 +308,21 @@ class ChartManager {
                 }
             };
         } else {
+            // Bar and Pie Charts (Distribution charts)
+
+            // The C# endpoint returns data with 'label' and 'value'
+            const labels = chartData.data?.map(item => item.label) || [];
+            const values = chartData.data?.map(item => item.value) || [];
+
             chartConfig = {
+                // Uses 'bar' or 'pie'
                 type: chartType.toLowerCase().replace('chart', ''),
                 data: {
-                    labels: chartData.data?.map(item => item.label || item.date) || [],
+                    labels: labels,
                     datasets: [{
                         label: 'Count',
-                        data: chartData.data?.map(item => item.value || item.count) || [],
-                        backgroundColor: this.generateChartColors(chartData.data?.length || 1),
+                        data: values,
+                        backgroundColor: this.generateChartColors(values.length),
                         borderColor: '#2a2a2a',
                         borderWidth: 2
                     }]
@@ -224,7 +338,8 @@ class ChartManager {
                             }
                         }
                     },
-                    scales: {
+                    // Only show scales for Bar charts
+                    scales: (chartType === 'BarChart') ? {
                         y: {
                             beginAtZero: true,
                             grid: {
@@ -242,11 +357,15 @@ class ChartManager {
                                 color: '#eee'
                             }
                         }
+                    } : {
+                        y: { display: false },
+                        x: { display: false }
                     }
                 }
             };
         }
 
-        new Chart(ctx, chartConfig);
+        // Store the chart instance so it can be destroyed later
+        this.activeCharts[canvasId] = new Chart(ctx, chartConfig);
     }
 }

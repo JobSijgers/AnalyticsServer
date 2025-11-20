@@ -1,0 +1,191 @@
+/* Chart Widgets Specific Styles (Separated for clarity) */
+
+/* Configured Charts Grid */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+}
+
+/* Chart Widget (General Styling) */
+.chart-widget {
+    background: rgba(42, 42, 42, 0.8);
+    border: 1px solid #444;
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.chart-widget:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    border-color: rgb(218, 135, 39);
+}
+
+/* Widget Header and Actions */
+.chart-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.chart-widget-header h4 {
+    margin: 0;
+    color: #eee;
+    font-size: 1.2rem;
+    font-weight: 600;
+    flex: 1;
+}
+
+.chart-widget-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Chart Container (where the canvas lives) */
+.chart-container {
+    height: 300px;
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+/* Widget Info */
+.chart-info {
+    border-top: 1px solid #444;
+    padding-top: 1rem;
+}
+
+.chart-info small {
+    color: #888;
+    font-size: 0.8rem;
+}
+
+/* --- Specific Chart Size Overrides --- */
+
+/* Small Chart Widget (NumberCard) */
+.chart-widget.small .chart-container {
+    height: 150px !important;
+}
+
+/* Large Chart Widget (Bar Chart with > 10 entries) */
+.charts-grid .chart-widget.large {
+    /* Span across two columns in the grid layout */
+    grid-column: span 2;
+    /* Increase height of the widget */
+    min-height: 500px;
+    /* Ensure border stands out */
+    border-color: #ff9800;
+}
+
+.charts-grid .chart-widget.large .chart-container {
+    height: 400px !important;
+}
+
+/* --- Manage Charts List (Modal) --- */
+.charts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.chart-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border: 1px solid #444;
+}
+
+.chart-list-info {
+    flex: 1;
+}
+
+.chart-list-name {
+    font-weight: 600;
+    color: #eee;
+    margin-bottom: 0.25rem;
+}
+
+.chart-list-details {
+    font-size: 0.8rem;
+    color: #aaa;
+}
+
+.chart-list-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.no-charts-message {
+    text-align: center;
+    color: #aaa;
+    padding: 3rem;
+    font-style: italic;
+}
+
+/* --- Responsive Overrides --- */
+
+@media (max-width: 768px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .chart-widget {
+        padding: 1rem;
+    }
+
+    .chart-widget-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .chart-widget-actions {
+        align-self: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-container {
+        height: 250px;
+    }
+
+    .chart-widget-header h4 {
+        font-size: 1rem;
+    }
+}
+
+/* Responsive adjustment for "large" chart on smaller screens */
+@media (max-width: 1024px) {
+    .charts-grid .chart-widget.large {
+        /* On single-column layouts, it should just take one column */
+        grid-column: span 1;
+        min-height: 350px;
+    }
+
+    .charts-grid .chart-widget.large .chart-container {
+        height: 250px !important;
+    }
+}
+
+/* Animation for chart loading */
+@keyframes chartFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chart-widget {
+    animation: chartFadeIn 0.3s ease-out;
+}
