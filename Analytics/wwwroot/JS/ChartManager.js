@@ -165,7 +165,7 @@ class ChartManager {
             // Assuming container style for number card is 150px height
             newHeight = 150;
             if (newWidth === 0) {
-                newWidth = container.offsetWidth > 0 ? container.offsetWidth : 200;
+                newWidth = container.offsetWidth > 0 ? container.offsetWidth : 300;
             }
         }
 

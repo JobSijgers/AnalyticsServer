@@ -5,6 +5,9 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
     gap: 2rem;
+    /* FIX: Use row dense packing and define auto rows for small widgets */
+    grid-auto-flow: row dense;
+    grid-auto-rows: minmax(200px, auto);
 }
 
 /* Chart Widget (General Styling) */
@@ -15,6 +18,9 @@
     padding: 1.5rem;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
+    /* FIX: Remove fixed height and use min-height only */
+    min-height: 432px;
+    height: auto;
 }
 
 .chart-widget:hover {
@@ -63,11 +69,42 @@
     font-size: 0.8rem;
 }
 
-/* --- Specific Chart Size Overrides --- */
+/* **FIX: Small Chart Widget (NumberCard) - Exactly half the height of normal widgets */
+.chart-widget.small {
+    align-self: start;
+    /* Reduce padding to account for smaller size */
+    padding: 1rem;
+    /* FIX: Use grid row span to occupy exactly 1 row (half the normal height) */
+    grid-row: span 1;
+    min-height: 200px;
+    height: 200px;
+    /* Use flexbox to better control internal spacing */
+    display: flex;
+    flex-direction: column;
+}
 
-/* Small Chart Widget (NumberCard) */
+/* FIX: Normal widgets span 2 rows to match 2 small widgets */
+.chart-widget:not(.small):not(.large) {
+    grid-row: span 2;
+}
+
 .chart-widget.small .chart-container {
-    height: 150px !important;
+    /* Adjust chart height to fit within the 200px total */
+    height: 130px !important;
+    /* Reduce bottom margin to bring info closer */
+    margin-bottom: 0;
+    /* Allow chart container to grow and push info down */
+    flex: 1;
+}
+
+.chart-widget.small .chart-widget-header {
+    margin-bottom: 0.75rem;
+}
+
+.chart-widget.small .chart-info {
+    padding-top: 0.5rem;
+    /* Ensure info stays at bottom but with less spacing */
+    margin-top: auto;
 }
 
 /* Large Chart Widget (Bar Chart with > 10 entries) */
@@ -75,13 +112,14 @@
     /* Span across two columns in the grid layout */
     grid-column: span 2;
     /* Increase height of the widget */
-    min-height: 500px;
+    min-height: 300px;
     /* Ensure border stands out */
     border-color: #ff9800;
+
 }
 
 .charts-grid .chart-widget.large .chart-container {
-    height: 400px !important;
+    height: 300px !important;
 }
 
 /* --- Manage Charts List (Modal) --- */
@@ -134,10 +172,27 @@
     .charts-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
+        grid-auto-rows: minmax(175px, auto);
     }
 
     .chart-widget {
         padding: 1rem;
+        min-height: 350px;
+    }
+
+    .chart-widget.small {
+        min-height: 175px;
+        height: 175px;
+        padding: 0.75rem;
+        grid-row: span 1;
+    }
+
+    .chart-widget:not(.small):not(.large) {
+        grid-row: span 2;
+    }
+
+    .chart-widget.small .chart-container {
+        height: 110px !important;
     }
 
     .chart-widget-header {
@@ -167,6 +222,7 @@
         /* On single-column layouts, it should just take one column */
         grid-column: span 1;
         min-height: 350px;
+        grid-row: span 2;
     }
 
     .charts-grid .chart-widget.large .chart-container {
