@@ -6,6 +6,23 @@ class ChartManager {
         this.activeCharts = {}; // Store active Chart.js instances by canvas ID
     }
 
+    // NEW HELPER METHOD: Formats numbers with a period as a thousands separator.
+    _formatNumberWithDots(num) {
+        const numberValue = Number(num);
+
+        if (isNaN(numberValue)) {
+            return String(num);
+        }
+
+        // Use Math.round() for better display (in case sumValue is a float),
+        // then get the integer part as a string.
+        const numStr = Math.round(numberValue).toString();
+
+        // Use a regular expression to insert a dot as a thousands separator.
+        // e.g., 1234567 -> 1.234.567
+        return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
     createPropertyDistributionChart() {
         const canvas = document.getElementById('properties-chart');
         if (!canvas) return;
@@ -148,7 +165,8 @@ class ChartManager {
     }
 
 
-    renderChart(canvasId, chartData, chartType) {
+    // FIX: Added config as a 4th argument, defaulted to null
+    renderChart(canvasId, chartData, chartType, config = null) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
 
@@ -180,7 +198,8 @@ class ChartManager {
 
 
         if (chartType === 'NumberCard') {
-            this.renderNumberCard(ctx, chartData, canvas.width, canvas.height);
+            // FIX: Pass the config object to renderNumberCard
+            this.renderNumberCard(ctx, chartData, config, canvas.width, canvas.height);
         } else {
             const dataArray = chartData.data || [];
             const hasData = dataArray.length > 0;
@@ -209,12 +228,10 @@ class ChartManager {
         }
     }
 
-    renderNumberCard(ctx, data, width, height) {
-        // Fallback for formatNumber if the dashboard utility fails (robustness)
-        const localFormatNumber = (num) => {
-            // Always return full number string as requested by user
-            return num.toString();
-        };
+    // FIX: Added config argument
+    renderNumberCard(ctx, data, config, width, height) {
+        // We no longer rely on localFormatNumber or this.dashboard.formatNumber.
+        // The formatting is now handled by the mandatory internal _formatNumberWithDots method.
 
         // Ensure canvas is cleared before drawing custom elements
         ctx.clearRect(0, 0, width, height);
@@ -228,10 +245,25 @@ class ChartManager {
             return;
         }
 
-        // NEW LOGIC: Determine what to display (Sum of Property or Total Events)
+        // Determine what to display (Sum of Property or Total Events)
         const showSum = cardData.sumValue !== undefined && cardData.sumValue !== 0;
         const valueToDisplay = showSum ? cardData.sumValue : cardData.total;
-        const labelToDisplay = showSum ? 'Sum of Properties' : 'Total Events';
+
+        // **CRITICAL MODIFICATION: Determine the label using the config object**
+        let labelToDisplay = 'Total Events';
+
+        if (showSum && config) {
+            // Priority 1: Use the explicit property name
+            const propertyName = config.propertyToDisplay;
+
+            if (propertyName) {
+                // Use the specific property name if found
+                labelToDisplay = propertyName;
+            } else {
+                // Priority 2: Fallback to the display name (chart title)
+                labelToDisplay = config.displayName || 'Sum of Property';
+            }
+        }
 
         if (valueToDisplay === 0 && cardData.total === 0) {
             ctx.font = '16px Arial';
@@ -241,9 +273,9 @@ class ChartManager {
             return;
         }
 
-        // Use the dashboard formatNumber if available, otherwise use local fallback
-        const formatter = this.dashboard.formatNumber || localFormatNumber;
-        const formattedValue = formatter(valueToDisplay);
+        // 🎯 The value is unconditionally formatted using the internal helper method
+        // to ensure the thousands dots are always present.
+        const formattedValue = this._formatNumberWithDots(valueToDisplay);
 
         ctx.fillStyle = '#eee';
         ctx.font = 'bold 48px Orbitron, sans-serif';
@@ -252,7 +284,7 @@ class ChartManager {
 
         ctx.fillStyle = '#aaa';
         ctx.font = '16px Roboto, sans-serif';
-        // NEW: Display dynamic label
+        // Display dynamic label
         ctx.fillText(labelToDisplay, width / 2, height / 2 + 30);
     }
 
@@ -332,6 +364,8 @@ class ChartManager {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
+                            // NEW: Disable legend for single-dataset distribution charts
+                            display: false,
                             position: 'top',
                             labels: {
                                 color: '#eee'

@@ -16,6 +16,7 @@
     border: 1px solid #444;
     border-radius: 12px;
     padding: 1.5rem;
+    /* ❌ REVERTED: Removed box-sizing: border-box; to fix original widget sizing */
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
     /* FIX: Remove fixed height and use min-height only */
@@ -244,4 +245,59 @@
 
 .chart-widget {
     animation: chartFadeIn 0.3s ease-out;
+}
+
+/* --- Styling for Drag-and-Drop functionality (Updated) --- */
+
+.charts-grid.draggable-grid {
+    /* No change needed here, just ensures the class is available */
+}
+
+.chart-widget[draggable="true"] {
+    cursor: grab;
+    transform-origin: center center;
+}
+
+.chart-widget[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.chart-widget.dragging {
+    /* Set opacity to 0 to hide it */
+    opacity: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+
+    /* NEW: Use absolute positioning to take it out of the normal document flow */
+    /* This is safer than fixed positioning for D&D ghosting in some browsers */
+    position: absolute !important;
+    top: -9999px;
+    left: -9999px;
+
+    /* Ensure no interaction */
+    pointer-events: none;
+}
+
+/* Placeholder for Drop Location */
+.chart-widget.placeholder {
+    /* Inherit grid sizing from normal or small widget */
+    grid-row: inherit;
+    grid-column: inherit;
+
+    background-color: rgba(218, 135, 39, 0.2);
+    border: 2px dashed #DA8727;
+    transition: none;
+    opacity: 1;
+
+    /* 🎯 FIX 4: Explicitly set border-box on placeholder to correctly interpret JS dimensions */
+    box-sizing: border-box;
+
+    /* Match the padding/margin rules of the regular widgets */
+    padding: 1.5rem;
+    border-radius: 12px;
+}
+
+/* Responsive Placeholder adjustment for small widgets */
+.chart-widget.small.placeholder {
+    padding: 1rem; /* Match small widget padding */
 }

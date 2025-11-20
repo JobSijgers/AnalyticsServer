@@ -2,7 +2,9 @@
 class ConfigManager {
     constructor(dashboard) {
         this.dashboard = dashboard;
-        this.editingChartId = null; // NEW: State property for tracking the chart being edited
+        this.editingChartId = null;
+        // 🎯 NEW: Initialize DragDropManager
+        this.dragDropManager = new DragDropManager(dashboard, this.saveChartOrder.bind(this));
         this.initializeModalEvents();
     }
 
@@ -189,6 +191,9 @@ class ConfigManager {
             this.createChartElement(container, config, chartData);
         }
 
+        // 🎯 NEW: Use DragDropManager to set up D&D
+        this.dragDropManager.setupDragAndDrop(container);
+
         this.dashboard.uiManager.updateDashboardState();
         this.dashboard.uiManager.showDashboardContent();
     }
@@ -249,6 +254,9 @@ class ConfigManager {
 
         // Apply classes for better styling/sizing
         chartElement.className = sizeClass;
+        // 🎯 IMPORTANT: Add a data attribute to easily retrieve the ID during D&D
+        chartElement.setAttribute('data-chart-id', config.id);
+
 
         chartElement.innerHTML = `
             <div class="chart-widget-header">
@@ -270,7 +278,8 @@ class ConfigManager {
 
         // Render the actual chart
         if (chartData) {
-            this.dashboard.chartManager.renderChart(chartId, chartData, config.chartType);
+            // FIX: Pass the entire config object as the 4th argument
+            this.dashboard.chartManager.renderChart(chartId, chartData, config.chartType, config);
         } else {
             // Display a message on the canvas if data failed to load
             const canvas = document.getElementById(chartId);
@@ -425,15 +434,26 @@ class ConfigManager {
     }
 
     async moveChart(configId, direction) {
+        // Find the widget element to flash a visual cue
+        const chartElement = document.querySelector(`.chart-widget[data-chart-id="${configId}"]`);
+        if (chartElement) {
+            chartElement.classList.add('flash-move');
+            setTimeout(() => chartElement.classList.remove('flash-move'), 500);
+        }
+
         const config = this.dashboard.chartConfigs.find(c => c.id === configId);
         if (!config) return;
 
-        const currentIndex = this.dashboard.chartConfigs.findIndex(c => c.id === configId);
+        // Sort a temporary copy of configs to find the current and new index
+        const sortedConfigs = [...this.dashboard.chartConfigs].sort((a, b) =>
+            (a.displayOrder || 0) - (b.displayOrder || 0)
+        );
+        const currentIndex = sortedConfigs.findIndex(c => c.id === configId);
         let newIndex;
 
         if (direction === 'up' && currentIndex > 0) {
             newIndex = currentIndex - 1;
-        } else if (direction === 'down' && currentIndex < this.dashboard.chartConfigs.length - 1) {
+        } else if (direction === 'down' && currentIndex < sortedConfigs.length - 1) {
             newIndex = currentIndex + 1;
         } else {
             return;
@@ -441,21 +461,38 @@ class ConfigManager {
 
         // Swap display orders
         const tempOrder = config.displayOrder;
-        config.displayOrder = this.dashboard.chartConfigs[newIndex].displayOrder;
-        this.dashboard.chartConfigs[newIndex].displayOrder = tempOrder;
+        config.displayOrder = sortedConfigs[newIndex].displayOrder;
+        sortedConfigs[newIndex].displayOrder = tempOrder;
+
+        // Apply the new order to the main array before saving
+        this.dashboard.chartConfigs = sortedConfigs;
 
         // Save updated orders
         await this.saveChartOrder();
         this.renderChartsList();
-        this.dashboard.loadChartConfigurations();
     }
 
     async saveChartOrder() {
         try {
-            const orders = this.dashboard.chartConfigs.map(config => ({
+            // Sort the local configs to ensure sequential order before mapping
+            const sortedConfigs = [...this.dashboard.chartConfigs].sort((a, b) =>
+                (a.displayOrder || 0) - (b.displayOrder || 0)
+            );
+
+            // Re-assign DisplayOrder sequentially (0, 1, 2, ...) based on the current sorted position
+            const orders = sortedConfigs.map((config, index) => ({
                 id: config.id,
-                displayOrder: config.displayOrder
+                displayOrder: index // Use the new index as the DisplayOrder
             }));
+
+            // CRITICAL: Update the local array with the sequential orders
+            orders.forEach(order => {
+                const config = this.dashboard.chartConfigs.find(c => c.id === order.id);
+                if (config) {
+                    config.displayOrder = order.displayOrder;
+                }
+            });
+
 
             const response = await tokenManager.authenticatedFetch(`${this.dashboard.baseUrl}/event-config/update-order`, {
                 method: 'POST',
@@ -477,10 +514,13 @@ class ConfigManager {
         }
     }
 
+    // 🎯 REMOVED: setupDragAndDrop and getDragAfterElement are now in DragDropManager.js
+
     async updatePreview() {
         const eventKey = document.getElementById('config-event-key').value;
         const property = document.getElementById('config-property').value;
         const chartType = document.getElementById('config-chart-type').value;
+        const displayName = document.getElementById('config-display-name').value;
         const previewInfo = document.getElementById('preview-info');
 
         if (!eventKey || !chartType) {
@@ -496,17 +536,19 @@ class ConfigManager {
             eventKey: eventKey,
             propertyToDisplay: property,
             chartType: chartType,
-            displayName: 'Preview'
+            displayName: displayName || 'Preview' // Use displayName from form
         };
 
         // Reuse the existing data loading function
         const chartData = await this.loadChartData(tempConfig);
 
         if (chartData) {
+            // FIX: Pass the entire tempConfig object as the 4th argument
             this.dashboard.chartManager.renderChart(
                 'preview-chart-canvas',
                 chartData,
-                chartType
+                chartType,
+                tempConfig
             );
             previewInfo.textContent = `Preview for: ${eventKey} (${chartType})`;
         } else {
