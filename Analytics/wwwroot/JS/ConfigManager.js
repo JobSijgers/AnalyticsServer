@@ -1,15 +1,12 @@
-// Configuration Manager - Handles chart configuration
 class ConfigManager {
     constructor(dashboard) {
         this.dashboard = dashboard;
         this.editingChartId = null;
-        // 🎯 NEW: Initialize DragDropManager
         this.dragDropManager = new DragDropManager(dashboard, this.saveChartOrder.bind(this));
         this.initializeModalEvents();
     }
 
     initializeModalEvents() {
-        // Config modal events
         document.getElementById('config-modal-close').addEventListener('click', () => {
             this.hideConfigModal();
         });
@@ -23,23 +20,20 @@ class ConfigManager {
             this.saveChartConfig();
         });
 
-        // Event key change handler
         document.getElementById('config-event-key').addEventListener('change', (e) => {
             if (e.target.value) {
                 this.loadPropertiesForEvent(e.target.value);
             }
-            this.updatePreview(); // <-- Trigger preview update
+            this.updatePreview();
         });
 
-        // Property and Chart Type change handlers for instant preview
         document.getElementById('config-property').addEventListener('change', () => {
-            this.updatePreview(); // <-- Trigger preview update
+            this.updatePreview();
         });
         document.getElementById('config-chart-type').addEventListener('change', () => {
-            this.updatePreview(); // <-- Trigger preview update
+            this.updatePreview();
         });
 
-        // Manage modal events
         document.getElementById('manage-modal-close').addEventListener('click', () => {
             this.hideManageModal();
         });
@@ -50,16 +44,13 @@ class ConfigManager {
         modal.classList.remove('hidden');
         this.loadEventKeysForConfig();
 
-        // Reset form
         document.getElementById('chart-config-form').reset();
 
-        // Ensure display order is set for a new chart
         if (this.editingChartId === null) {
             document.getElementById('config-display-order').value = this.dashboard.chartConfigs.length;
-            document.getElementById('config-save-btn').textContent = 'Save Chart'; // Default to Save
+            document.getElementById('config-save-btn').textContent = 'Save Chart';
         }
 
-        // Clear preview when modal opens
         this.dashboard.chartManager.clearCanvas('preview-chart-canvas');
         document.getElementById('preview-info').textContent = 'Select an Event Key and Chart Type to see a preview.';
     }
@@ -67,7 +58,7 @@ class ConfigManager {
     hideConfigModal() {
         const modal = document.getElementById('config-modal');
         modal.classList.add('hidden');
-        this.editingChartId = null; // Clear editing state when closing
+        this.editingChartId = null;
     }
 
     showManageModal() {
@@ -90,11 +81,10 @@ class ConfigManager {
             if (response.ok) {
                 const data = await response.json();
                 const eventKeySelect = document.getElementById('config-event-key');
-                const selectedKey = eventKeySelect.value; // Store currently selected value
+                const selectedKey = eventKeySelect.value;
 
                 eventKeySelect.innerHTML = '<option value="">Select Event Key</option>';
 
-                // FIX: Properly handle the API response structure
                 if (data.success && data.data && data.data.eventKeys) {
                     data.data.eventKeys.forEach(key => {
                         const option = document.createElement('option');
@@ -103,7 +93,6 @@ class ConfigManager {
                         eventKeySelect.appendChild(option);
                     });
 
-                    // Re-select the previously selected key if it exists
                     if (selectedKey) {
                         eventKeySelect.value = selectedKey;
                     }
@@ -130,11 +119,10 @@ class ConfigManager {
             if (response.ok) {
                 const data = await response.json();
                 const propertySelect = document.getElementById('config-property');
-                const selectedProperty = propertySelect.value; // Store currently selected property
+                const selectedProperty = propertySelect.value;
 
                 propertySelect.innerHTML = '<option value="">Event Count (default)</option>';
 
-                // FIX: Properly handle the API response structure
                 if (data.success && data.data && data.data.propertyKeys) {
                     data.data.propertyKeys.forEach(key => {
                         const option = document.createElement('option');
@@ -143,7 +131,6 @@ class ConfigManager {
                         propertySelect.appendChild(option);
                     });
 
-                    // Re-select the previously selected property if it exists
                     if (selectedProperty) {
                         propertySelect.value = selectedProperty;
                     }
@@ -174,32 +161,115 @@ class ConfigManager {
 
     async renderConfiguredCharts() {
         const container = document.getElementById('charts-grid');
-        const section = document.getElementById('charts-section');
-
-        if (!container || !section) return;
+        if (!container) return;
 
         container.innerHTML = '';
 
-        // Sort charts by display order
         const sortedConfigs = [...this.dashboard.chartConfigs].sort((a, b) =>
             (a.displayOrder || 0) - (b.displayOrder || 0)
         );
 
-        // Fetch and render charts sequentially for stability
+        const chartRenderPromises = [];
+
         for (const config of sortedConfigs) {
-            const chartData = await this.loadChartData(config);
-            this.createChartElement(container, config, chartData);
+            const chartElement = this.createChartSkeleton(container, config);
+            chartRenderPromises.push(this.fetchAndRenderChart(chartElement, config));
         }
 
-        // 🎯 NEW: Use DragDropManager to set up D&D
         this.dragDropManager.setupDragAndDrop(container);
 
-        this.dashboard.uiManager.updateDashboardState();
-        this.dashboard.uiManager.showDashboardContent();
+        await Promise.allSettled(chartRenderPromises);
     }
 
+    async fetchAndRenderChart(chartElement, config) {
+        const chartId = `chart-${config.id}`;
+        const loadingContainer = document.getElementById(`loading-${config.id}`);
+        const canvas = document.getElementById(chartId);
+
+        if (canvas) canvas.classList.add('hidden');
+
+        try {
+            const chartData = await this.loadChartData(config);
+
+            if (loadingContainer) loadingContainer.remove();
+
+            if (config.chartType === 'BarChart') {
+                const dataCount = chartData?.data?.length || 0;
+                if (dataCount > 10) {
+                    chartElement.classList.add('large');
+                }
+            }
+
+            if (chartData) {
+                this.dashboard.chartManager.renderChart(chartId, chartData, config.chartType, config);
+                if (canvas) canvas.classList.remove('hidden');
+            } else {
+                this.displayErrorOnCanvas(canvas, 'Data failed to load.');
+            }
+
+        } catch (error) {
+            console.error(`Error loading/rendering chart ${config.id}:`, error);
+            if (loadingContainer) loadingContainer.remove();
+            this.displayErrorOnCanvas(canvas, 'Failed to fetch data.');
+        }
+    }
+
+    createChartSkeleton(container, config) {
+        const chartId = `chart-${config.id}`;
+        const chartElement = document.createElement('div');
+
+        let sizeClass = 'chart-widget';
+        let chartHeight = '300px';
+
+        if (config.chartType === 'NumberCard') {
+            sizeClass = 'chart-widget small';
+            chartHeight = '150px';
+        }
+
+        chartElement.className = sizeClass;
+        chartElement.setAttribute('data-chart-id', config.id);
+
+
+        chartElement.innerHTML = `
+            <div class="chart-widget-header">
+                <h4>${config.displayName || config.eventKey}</h4>
+                <div class="chart-widget-actions">
+                    <button class="table-action" onclick="propertiesDashboard.configManager.editChart('${config.id}')">Edit</button>
+                    <button class="table-action delete" onclick="propertiesDashboard.configManager.deleteChart('${config.id}')">Delete</button>
+                </div>
+            </div>
+            <div class="chart-container" style="height: ${chartHeight};">
+                <div id="loading-${config.id}" class="loading-spinner-container">
+                    <div class="loading-spinner"></div>
+                    <p>Loading data...</p>
+                </div>
+                <canvas id="${chartId}" class="hidden-canvas"></canvas>
+            </div>
+            <div class="chart-info">
+                <small>Event: ${config.eventKey} | Type: ${config.chartType}${config.propertyToDisplay ? ` | Property: ${config.propertyToDisplay}` : ''}</small>
+            </div>
+        `;
+
+        container.appendChild(chartElement);
+        return chartElement;
+    }
+
+    displayErrorOnCanvas(canvas, message) {
+        if (canvas) {
+            canvas.classList.remove('hidden');
+            const ctx = canvas.getContext('2d');
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#f44336';
+            ctx.textAlign = 'center';
+            const width = canvas.width || 300;
+            const height = canvas.height || 300;
+            ctx.fillText(message, width / 2, height / 2);
+        }
+    }
+
+
     async loadChartData(config) {
-        const days = document.getElementById('date-range')?.value || '30'; // Get dynamic days
+        const days = document.getElementById('date-range')?.value || '30';
 
         try {
             const queryParams = new URLSearchParams({
@@ -207,7 +277,7 @@ class ConfigManager {
                 eventKey: config.eventKey,
                 propertyName: config.propertyToDisplay || '',
                 chartType: config.chartType,
-                days: days // Use dynamic days
+                days: days
             });
 
             const url = `${this.dashboard.baseUrl}/dashboard/custom-chart?${queryParams}`;
@@ -217,7 +287,6 @@ class ConfigManager {
             if (response.ok) {
                 const data = await response.json();
 
-                // FIX: Correctly access the nested data path using camelCase: data.data.chartData
                 if (data.success && data.data) {
                     const chartData = data.data.chartData;
                     return chartData;
@@ -231,67 +300,6 @@ class ConfigManager {
             console.error(`Network error loading chart data for ${config.displayName}:`, error);
         }
         return null;
-    }
-
-    createChartElement(container, config, chartData) {
-        const chartId = `chart-${config.id}`;
-        const chartElement = document.createElement('div');
-
-        let sizeClass = 'chart-widget'; // Default size
-        let chartHeight = '300px';
-
-        if (config.chartType === 'NumberCard') {
-            sizeClass = 'chart-widget small';
-            chartHeight = '150px';
-        } else if (config.chartType === 'BarChart') {
-            const dataCount = chartData?.data?.length || 0;
-            // NEW LOGIC: Make the Bar Chart "large" if it has more than 10 entries
-            if (dataCount > 10) {
-                sizeClass = 'chart-widget large';
-                chartHeight = '400px'; // Overridden by CSS if necessary
-            }
-        }
-
-        // Apply classes for better styling/sizing
-        chartElement.className = sizeClass;
-        // 🎯 IMPORTANT: Add a data attribute to easily retrieve the ID during D&D
-        chartElement.setAttribute('data-chart-id', config.id);
-
-
-        chartElement.innerHTML = `
-            <div class="chart-widget-header">
-                <h4>${config.displayName || config.eventKey}</h4>
-                <div class="chart-widget-actions">
-                    <button class="table-action" onclick="propertiesDashboard.configManager.editChart('${config.id}')">Edit</button>
-                    <button class="table-action delete" onclick="propertiesDashboard.configManager.deleteChart('${config.id}')">Delete</button>
-                </div>
-            </div>
-            <div class="chart-container" style="height: ${chartHeight};">
-                <canvas id="${chartId}"></canvas>
-            </div>
-            <div class="chart-info">
-                <small>Event: ${config.eventKey} | Type: ${config.chartType}${config.propertyToDisplay ? ` | Property: ${config.propertyToDisplay}` : ''}</small>
-            </div>
-        `;
-
-        container.appendChild(chartElement);
-
-        // Render the actual chart
-        if (chartData) {
-            // FIX: Pass the entire config object as the 4th argument
-            this.dashboard.chartManager.renderChart(chartId, chartData, config.chartType, config);
-        } else {
-            // Display a message on the canvas if data failed to load
-            const canvas = document.getElementById(chartId);
-            if (canvas) {
-                const ctx = canvas.getContext('2d');
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#f44336';
-                ctx.textAlign = 'center';
-                // Note: The ChartManager will overwrite this if it fails the meaningful data check.
-                ctx.fillText('Data failed to load.', canvas.width / 2, canvas.height / 2);
-            }
-        }
     }
 
     renderChartsList() {
@@ -333,7 +341,7 @@ class ConfigManager {
     async saveChartConfig() {
         try {
             const formData = {
-                id: this.editingChartId, // NEW: Include the ID for update operation (null if creating)
+                id: this.editingChartId,
                 projectId: this.dashboard.currentProject,
                 eventKey: document.getElementById('config-event-key').value,
                 displayName: document.getElementById('config-display-name').value,
@@ -357,7 +365,7 @@ class ConfigManager {
                     toastManager.success(`Chart configuration ${this.editingChartId ? 'updated' : 'saved'}!`);
                     this.hideConfigModal();
                     this.dashboard.loadChartConfigurations();
-                    this.editingChartId = null; // IMPORTANT: Clear state after successful save/update
+                    this.editingChartId = null;
                 }
             }
         } catch (error) {
@@ -369,31 +377,22 @@ class ConfigManager {
     editChart(configId) {
         const config = this.dashboard.chartConfigs.find(c => c.id === configId);
         if (config) {
-            this.editingChartId = configId; // NEW: Set the ID for update tracking
+            this.editingChartId = configId;
 
-            // 1. Show modal (this loads event keys and resets the form briefly)
             this.showConfigModal();
 
-            // 2. Pre-populate basic fields
             document.getElementById('config-display-name').value = config.displayName;
             document.getElementById('config-chart-type').value = config.chartType;
             document.getElementById('config-display-order').value = config.displayOrder;
 
-            // 3. Update button text
             document.getElementById('config-save-btn').textContent = 'Update Chart';
 
-            // 4. Handle asynchronous population of Event Key and Properties
-            // Use a slight delay or a more robust promise chain to ensure options are loaded.
             setTimeout(() => {
-                // Pre-populate Event Key
                 document.getElementById('config-event-key').value = config.eventKey;
 
-                // Load properties for the selected event key
                 this.loadPropertiesForEvent(config.eventKey).then(() => {
-                    // Pre-populate Property To Analyze after properties are loaded
                     document.getElementById('config-property').value = config.propertyToDisplay || '';
 
-                    // Update preview with old data
                     this.updatePreview();
                 });
             }, 50);
@@ -434,7 +433,6 @@ class ConfigManager {
     }
 
     async moveChart(configId, direction) {
-        // Find the widget element to flash a visual cue
         const chartElement = document.querySelector(`.chart-widget[data-chart-id="${configId}"]`);
         if (chartElement) {
             chartElement.classList.add('flash-move');
@@ -444,7 +442,6 @@ class ConfigManager {
         const config = this.dashboard.chartConfigs.find(c => c.id === configId);
         if (!config) return;
 
-        // Sort a temporary copy of configs to find the current and new index
         const sortedConfigs = [...this.dashboard.chartConfigs].sort((a, b) =>
             (a.displayOrder || 0) - (b.displayOrder || 0)
         );
@@ -459,33 +456,27 @@ class ConfigManager {
             return;
         }
 
-        // Swap display orders
         const tempOrder = config.displayOrder;
         config.displayOrder = sortedConfigs[newIndex].displayOrder;
         sortedConfigs[newIndex].displayOrder = tempOrder;
 
-        // Apply the new order to the main array before saving
         this.dashboard.chartConfigs = sortedConfigs;
 
-        // Save updated orders
         await this.saveChartOrder();
         this.renderChartsList();
     }
 
     async saveChartOrder() {
         try {
-            // Sort the local configs to ensure sequential order before mapping
             const sortedConfigs = [...this.dashboard.chartConfigs].sort((a, b) =>
                 (a.displayOrder || 0) - (b.displayOrder || 0)
             );
 
-            // Re-assign DisplayOrder sequentially (0, 1, 2, ...) based on the current sorted position
             const orders = sortedConfigs.map((config, index) => ({
                 id: config.id,
-                displayOrder: index // Use the new index as the DisplayOrder
+                displayOrder: index
             }));
 
-            // CRITICAL: Update the local array with the sequential orders
             orders.forEach(order => {
                 const config = this.dashboard.chartConfigs.find(c => c.id === order.id);
                 if (config) {
@@ -514,8 +505,6 @@ class ConfigManager {
         }
     }
 
-    // 🎯 REMOVED: setupDragAndDrop and getDragAfterElement are now in DragDropManager.js
-
     async updatePreview() {
         const eventKey = document.getElementById('config-event-key').value;
         const property = document.getElementById('config-property').value;
@@ -536,14 +525,12 @@ class ConfigManager {
             eventKey: eventKey,
             propertyToDisplay: property,
             chartType: chartType,
-            displayName: displayName || 'Preview' // Use displayName from form
+            displayName: displayName || 'Preview'
         };
 
-        // Reuse the existing data loading function
         const chartData = await this.loadChartData(tempConfig);
 
         if (chartData) {
-            // FIX: Pass the entire tempConfig object as the 4th argument
             this.dashboard.chartManager.renderChart(
                 'preview-chart-canvas',
                 chartData,

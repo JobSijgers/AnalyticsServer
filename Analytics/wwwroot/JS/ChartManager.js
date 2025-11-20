@@ -1,12 +1,10 @@
-// Chart Manager - Handles all chart-related functionality
 class ChartManager {
     constructor(dashboard) {
         this.dashboard = dashboard;
         this.pieChart = null;
-        this.activeCharts = {}; // Store active Chart.js instances by canvas ID
+        this.activeCharts = {};
     }
 
-    // NEW HELPER METHOD: Formats numbers with a period as a thousands separator.
     _formatNumberWithDots(num) {
         const numberValue = Number(num);
 
@@ -14,12 +12,8 @@ class ChartManager {
             return String(num);
         }
 
-        // Use Math.round() for better display (in case sumValue is a float),
-        // then get the integer part as a string.
         const numStr = Math.round(numberValue).toString();
 
-        // Use a regular expression to insert a dot as a thousands separator.
-        // e.g., 1234567 -> 1.234.567
         return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
@@ -29,24 +23,20 @@ class ChartManager {
 
         const ctx = canvas.getContext('2d');
 
-        // Set canvas size to fit container
         const container = canvas.parentElement;
         canvas.width = container.clientWidth;
         canvas.height = container.clientHeight;
 
-        // Destroy existing chart if it exists
         if (this.pieChart) {
             this.pieChart.destroy();
         }
 
-        // This is a legacy chart method; ensure it doesn't conflict with dynamic ones
         if (this.activeCharts['properties-chart']) {
             this.activeCharts['properties-chart'].destroy();
             delete this.activeCharts['properties-chart'];
         }
 
         if (!this.dashboard.currentData.topProperties || this.dashboard.currentData.topProperties.length === 0) {
-            // Display message when no data
             ctx.font = '16px Arial';
             ctx.fillStyle = '#aaa';
             ctx.textAlign = 'center';
@@ -60,7 +50,6 @@ class ChartManager {
         const data = this.dashboard.currentData.topProperties.map(prop => prop.Count || prop.count || 0);
         const total = data.reduce((sum, value) => sum + value, 0);
 
-        // Generate distinct colors for the pie chart
         const colors = this.generateChartColors(data.length);
 
         this.pieChart = new Chart(ctx, {
@@ -121,33 +110,30 @@ class ChartManager {
 
     generateChartColors(count) {
         const baseColors = [
-            'rgb(218, 135, 39)',    // Primary orange
-            'rgb(76, 175, 80)',     // Green
-            'rgb(33, 150, 243)',    // Blue
-            'rgb(156, 39, 176)',    // Purple
-            'rgb(255, 152, 0)',     // Amber
-            'rgb(244, 67, 54)',     // Red
-            'rgb(0, 188, 212)',     // Cyan
-            'rgb(103, 58, 183)',    // Deep purple
-            'rgb(255, 87, 34)',     // Deep orange
-            'rgb(205, 220, 57)'     // Lime
+            'rgb(218, 135, 39)',
+            'rgb(76, 175, 80)',
+            'rgb(33, 150, 243)',
+            'rgb(156, 39, 176)',
+            'rgb(255, 152, 0)',
+            'rgb(244, 67, 54)',
+            'rgb(0, 188, 212)',
+            'rgb(103, 58, 183)',
+            'rgb(255, 87, 34)',
+            'rgb(205, 220, 57)'
         ];
 
-        // If we need more colors than available, generate variations
         if (count <= baseColors.length) {
             return baseColors.slice(0, count);
         }
 
-        // Generate additional colors by adjusting hue
         const colors = [...baseColors];
         for (let i = baseColors.length; i < count; i++) {
-            const hue = (i * 137.5) % 360; // Golden angle approximation
+            const hue = (i * 137.5) % 360;
             colors.push(`hsl(${hue}, 70%, 50%)`);
         }
         return colors;
     }
 
-    // Utility to clear a canvas context (used for preview)
     clearCanvas(canvasId) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
@@ -159,28 +145,23 @@ class ChartManager {
             chartInstance.destroy();
             delete this.activeCharts[canvasId];
         } else {
-            // Clear manually if no Chart.js instance exists (e.g., for Number Card message)
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
     }
 
 
-    // FIX: Added config as a 4th argument, defaulted to null
     renderChart(canvasId, chartData, chartType, config = null) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
 
-        // Set canvas size
         const container = canvas.parentElement;
 
         let newWidth = container.clientWidth;
         let newHeight = container.clientHeight;
 
-        // FIX: Robust canvas sizing for Number Cards
         if (chartType === 'NumberCard' && newHeight === 0) {
-            // Assuming container style for number card is 150px height
             newHeight = 150;
             if (newWidth === 0) {
                 newWidth = container.offsetWidth > 0 ? container.offsetWidth : 300;
@@ -190,7 +171,6 @@ class ChartManager {
         canvas.width = newWidth;
         canvas.height = newHeight;
 
-        // FIX: Destroy existing chart instance on this canvas before creating a new one
         if (this.activeCharts[canvasId]) {
             this.activeCharts[canvasId].destroy();
             delete this.activeCharts[canvasId];
@@ -198,21 +178,18 @@ class ChartManager {
 
 
         if (chartType === 'NumberCard') {
-            // FIX: Pass the config object to renderNumberCard
             this.renderNumberCard(ctx, chartData, config, canvas.width, canvas.height);
         } else {
             const dataArray = chartData.data || [];
             const hasData = dataArray.length > 0;
 
-            // Check if there is meaningful data (i.e., not just an array of zeros)
             let isMeaningful = false;
 
             if (hasData) {
                 if (chartType === 'LineChart') {
-                    // Check if sum of all time series values (count or value) is > 0
-                    isMeaningful = dataArray.some(item => (item.count || item.value) > 0);
+                    const valueField = chartData.data?.some(item => item.value !== undefined && item.value !== 0) ? 'value' : 'count';
+                    isMeaningful = dataArray.some(item => item[valueField] > 0);
                 } else if (chartType === 'BarChart' || chartType === 'PieChart') {
-                    // Check if sum of all distribution values is > 0
                     isMeaningful = dataArray.some(item => item.value > 0);
                 }
             }
@@ -228,12 +205,7 @@ class ChartManager {
         }
     }
 
-    // FIX: Added config argument
     renderNumberCard(ctx, data, config, width, height) {
-        // We no longer rely on localFormatNumber or this.dashboard.formatNumber.
-        // The formatting is now handled by the mandatory internal _formatNumberWithDots method.
-
-        // Ensure canvas is cleared before drawing custom elements
         ctx.clearRect(0, 0, width, height);
 
         const cardData = data?.data;
@@ -245,22 +217,17 @@ class ChartManager {
             return;
         }
 
-        // Determine what to display (Sum of Property or Total Events)
         const showSum = cardData.sumValue !== undefined && cardData.sumValue !== 0;
         const valueToDisplay = showSum ? cardData.sumValue : cardData.total;
 
-        // **CRITICAL MODIFICATION: Determine the label using the config object**
         let labelToDisplay = 'Total Events';
 
         if (showSum && config) {
-            // Priority 1: Use the explicit property name
             const propertyName = config.propertyToDisplay;
 
             if (propertyName) {
-                // Use the specific property name if found
                 labelToDisplay = propertyName;
             } else {
-                // Priority 2: Fallback to the display name (chart title)
                 labelToDisplay = config.displayName || 'Sum of Property';
             }
         }
@@ -273,8 +240,6 @@ class ChartManager {
             return;
         }
 
-        // 🎯 The value is unconditionally formatted using the internal helper method
-        // to ensure the thousands dots are always present.
         const formattedValue = this._formatNumberWithDots(valueToDisplay);
 
         ctx.fillStyle = '#eee';
@@ -284,17 +249,14 @@ class ChartManager {
 
         ctx.fillStyle = '#aaa';
         ctx.font = '16px Roboto, sans-serif';
-        // Display dynamic label
         ctx.fillText(labelToDisplay, width / 2, height / 2 + 30);
     }
 
     renderChartJsChart(ctx, chartData, chartType, canvasId) {
         let chartConfig;
 
-        // Line Charts
         if (chartType === 'LineChart') {
 
-            // Determine whether to use 'value' (for property analysis) or 'count' (for event count)
             const valueField = chartData.data?.some(item => item.value !== undefined && item.value !== 0) ? 'value' : 'count';
 
             chartConfig = {
@@ -303,8 +265,8 @@ class ChartManager {
                     labels: chartData.data?.map(item => item.date) || [],
                     datasets: [{
                         label: valueField === 'value' ? 'Average Value' : 'Event Count',
-                        data: chartData.data?.map(item => item[valueField]) || [], // Use the dynamic field
-                        backgroundColor: 'rgb(218, 135, 39)', // Use solid color for line
+                        data: chartData.data?.map(item => item[valueField]) || [],
+                        backgroundColor: 'rgb(218, 135, 39)',
                         borderColor: 'rgb(218, 135, 39)',
                         borderWidth: 2,
                         fill: false
@@ -340,14 +302,10 @@ class ChartManager {
                 }
             };
         } else {
-            // Bar and Pie Charts (Distribution charts)
-
-            // The C# endpoint returns data with 'label' and 'value'
             const labels = chartData.data?.map(item => item.label) || [];
             const values = chartData.data?.map(item => item.value) || [];
 
             chartConfig = {
-                // Uses 'bar' or 'pie'
                 type: chartType.toLowerCase().replace('chart', ''),
                 data: {
                     labels: labels,
@@ -364,7 +322,6 @@ class ChartManager {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            // NEW: Disable legend for single-dataset distribution charts
                             display: false,
                             position: 'top',
                             labels: {
@@ -372,7 +329,6 @@ class ChartManager {
                             }
                         }
                     },
-                    // Only show scales for Bar charts
                     scales: (chartType === 'BarChart') ? {
                         y: {
                             beginAtZero: true,
@@ -399,7 +355,6 @@ class ChartManager {
             };
         }
 
-        // Store the chart instance so it can be destroyed later
         this.activeCharts[canvasId] = new Chart(ctx, chartConfig);
     }
 }
