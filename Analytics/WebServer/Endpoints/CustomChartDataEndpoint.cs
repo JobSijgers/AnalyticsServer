@@ -1,9 +1,17 @@
 ﻿using KHSWeb.Models;
 using MongoDB.Driver;
 using Utils;
-
+using System.Text.Json;
+using MongoDB.Bson; // Required for BsonDocument
 
 namespace KHSWeb.Endpoints;
+
+public class FilterCondition
+{
+    public string Property { get; set; }
+    public string Operator { get; set; } 
+    public object Value { get; set; }
+}
 
 public class CustomChartDataEndpoint : WebEndpoint
 {
@@ -16,9 +24,10 @@ public class CustomChartDataEndpoint : WebEndpoint
         {
             var projectId = context.Request.Query["projectId"].ToString();
             var eventKey = context.Request.Query["eventKey"].ToString();
-            var propertyName = context.Request.Query["propertyName"].ToString(); // Optional
+            var propertyName = context.Request.Query["propertyName"].ToString(); 
             var chartType = context.Request.Query["chartType"].ToString();
             var days = int.TryParse(context.Request.Query["days"], out int d) ? d : 30;
+            var filtersJson = context.Request.Query["filtersJson"].ToString(); 
 
             if (string.IsNullOrEmpty(projectId) || string.IsNullOrEmpty(eventKey))
             {
@@ -33,13 +42,41 @@ public class CustomChartDataEndpoint : WebEndpoint
             var collection = database.GetCollection<AnalyticEventDocument>(Config.MetricsCollectionName);
 
             var startDate = DateTime.UtcNow.AddDays(-days);
-            var filter = Builders<AnalyticEventDocument>.Filter.And(
-                Builders<AnalyticEventDocument>.Filter.Eq(x => x.ProjectId, projectId),
-                Builders<AnalyticEventDocument>.Filter.Eq(x => x.Key, eventKey),
-                Builders<AnalyticEventDocument>.Filter.Gte(x => x.Timestamp, startDate)
-            );
+            var filterBuilder = Builders<AnalyticEventDocument>.Filter;
+            
+            var filters = new List<FilterDefinition<AnalyticEventDocument>>
+            {
+                filterBuilder.Eq(x => x.ProjectId, projectId),
+                filterBuilder.Eq(x => x.Key, eventKey),
+                filterBuilder.Gte(x => x.Timestamp, startDate)
+            };
 
-            var events = await collection.Find(filter)
+            if (!string.IsNullOrEmpty(filtersJson))
+            {
+                try 
+                {
+                    var conditions = JsonSerializer.Deserialize<List<FilterCondition>>(filtersJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    if (conditions != null)
+                    {
+                        foreach (var cond in conditions)
+                        {
+                            var dynamicFilter = BuildDynamicFilter(filterBuilder, cond);
+                            if (dynamicFilter != null)
+                            {
+                                filters.Add(dynamicFilter);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebugUtils.PrintError($"Error parsing filters: {ex.Message}");
+                }
+            }
+
+            var finalFilter = filterBuilder.And(filters);
+
+            var events = await collection.Find(finalFilter)
                 .SortBy(x => x.Timestamp)
                 .ToListAsync();
 
@@ -62,19 +99,74 @@ public class CustomChartDataEndpoint : WebEndpoint
         }
     };
 
+    private FilterDefinition<AnalyticEventDocument> BuildDynamicFilter(FilterDefinitionBuilder<AnalyticEventDocument> builder, FilterCondition condition)
+    {
+        var fieldName = $"Properties.{condition.Property}";
+        object val = condition.Value;
+        bool isNumericComparison = false;
+        
+        // 1. Normalize JSON Element & Detect Type
+        if (val is JsonElement element)
+        {
+            if (element.ValueKind == JsonValueKind.Number) 
+            {
+                if (element.TryGetInt64(out long l)) val = l;
+                else val = element.GetDouble();
+                isNumericComparison = true;
+            }
+            else if (element.ValueKind == JsonValueKind.True) val = true;
+            else if (element.ValueKind == JsonValueKind.False) val = false;
+            else val = element.ToString();
+        }
+
+        // 2. SMART NUMERIC LOGIC (The Fix for "10" > 6)
+        if (isNumericComparison)
+        {
+             var mongoOp = condition.Operator switch {
+                 "=" => "$eq", "!=" => "$ne", ">" => "$gt", "<" => "$lt", ">=" => "$gte", "<=" => "$lte", _ => "$eq"
+             };
+             
+             return new BsonDocument("$expr", 
+                new BsonDocument(mongoOp, new BsonArray { 
+                    new BsonDocument("$toDouble", $"${fieldName}"), 
+                    BsonValue.Create(val) // FIX: Wrapped in BsonValue.Create()
+                })
+             );
+        }
+
+        // 3. SMART BOOLEAN LOGIC (The Fix for true vs "True")
+        if (val is bool boolVal && condition.Operator == "=")
+        {
+            return builder.Or(
+                builder.Eq(fieldName, boolVal),
+                builder.Eq(fieldName, boolVal.ToString()),
+                builder.Eq(fieldName, boolVal.ToString().ToLower())
+            );
+        }
+
+        // 4. Standard Logic
+        return condition.Operator switch
+        {
+            "=" => builder.Eq(fieldName, val),
+            "!=" => builder.Ne(fieldName, val),
+            ">" => builder.Gt(fieldName, val),
+            "<" => builder.Lt(fieldName, val),
+            ">=" => builder.Gte(fieldName, val),
+            "<=" => builder.Lte(fieldName, val),
+            _ => null
+        };
+    }
+
     private object ProcessChartData(List<AnalyticEventDocument> events, string propertyName, string chartType, int days)
     {
-        // Handle empty property name (count events)
         var isEmptyProperty = string.IsNullOrEmpty(propertyName);
-        
         return chartType?.ToLower() switch
         {
             "linechart" => ProcessLineChart(events, propertyName, days, isEmptyProperty),
             "piechart" => ProcessPieChart(events, propertyName, isEmptyProperty),
             "barchart" => ProcessBarChart(events, propertyName, isEmptyProperty),
             "numbercard" => ProcessNumberCard(events, propertyName, isEmptyProperty),
-            
-            _ => ProcessLineChart(events, propertyName, days, isEmptyProperty) // Default to LineChart
+            _ => ProcessLineChart(events, propertyName, days, isEmptyProperty)
         };
     }
 
@@ -82,14 +174,12 @@ public class CustomChartDataEndpoint : WebEndpoint
     {
         if (isEmptyProperty)
         {
-            // Existing logic: Count events over time
             var dailyCounts = events
                 .GroupBy(e => e.Timestamp.Date)
                 .Select(g => new { Date = g.Key, Count = g.Count() })
                 .OrderBy(x => x.Date)
                 .ToList();
 
-            // Fill in missing days
             var result = new List<object>();
             for (var i = 0; i < days; i++)
             {
@@ -97,14 +187,10 @@ public class CustomChartDataEndpoint : WebEndpoint
                 var count = dailyCounts.FirstOrDefault(d => d.Date == date)?.Count ?? 0;
                 result.Add(new { date = date.ToString("MMM dd"), count });
             }
-
             return new { type = "line", data = result };
         }
         else
         {
-            // Updated Logic: Show property value distribution sorted by COUNT (value) DESCENDING
-
-            // 1. Flatten all property values (handling array strings)
             var allPropertyValues = events
                 .Where(e => e.PropertiesDict.ContainsKey(propertyName))
                 .SelectMany(e =>
@@ -112,109 +198,54 @@ public class CustomChartDataEndpoint : WebEndpoint
                     var propValue = e.PropertiesDict[propertyName];
                     if (propValue is string s && s.StartsWith("[\"") && s.EndsWith("\"]"))
                     {
-                        try
-                        {
-                            var arrayString = s.Trim('[', ']').Replace("\"", "");
-                            return arrayString.Split(',').Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim());
-                        }
-                        catch
-                        {
-                            return new[] { s };
-                        }
+                        try { return s.Trim('[', ']').Replace("\"", "").Split(',').Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim()); }
+                        catch { return new[] { s }; }
                     }
                     return new[] { propValue?.ToString() ?? "Unknown" };
                 })
                 .ToList();
 
-            // 2. Calculate distribution
             var distribution = allPropertyValues
                 .GroupBy(key => key)
                 .Select(g => new { label = g.Key, value = g.Count() });
 
-            // NEW SORTING LOGIC: Sort by count (value) descending, then by label for consistency
-            var sortedDistribution = distribution
-                .OrderByDescending(x => x.value) 
-                .ThenBy(x => x.label) 
-                .Take(50) 
-                .ToList();
-            
-            // 3. Map to the line chart's expected 'date' (X-axis) and 'count' (Y-axis) fields.
-            var result = sortedDistribution
-                .Select(d => new { date = d.label, count = d.value })
-                .ToList<object>();
-
+            var sortedDistribution = distribution.OrderByDescending(x => x.value).ThenBy(x => x.label).Take(50).ToList();
+            var result = sortedDistribution.Select(d => new { date = d.label, count = d.value }).ToList<object>();
             return new { type = "line", data = result };
         }
     }
 
     private object ProcessPieChart(List<AnalyticEventDocument> events, string propertyName, bool isEmptyProperty)
     {
-        if (isEmptyProperty)
-        {
-            // Just show total count as a single slice
-            return new { 
-                type = "pie", 
-                data = new[] { new { label = "Total Events", value = events.Count } } 
-            };
-        }
-        else
-        {
-            // FIX: Flatten array values before calculating distribution
-            var allPropertyValues = events
-                .Where(e => e.PropertiesDict.ContainsKey(propertyName))
-                .SelectMany(e =>
+        if (isEmptyProperty) return new { type = "pie", data = new[] { new { label = "Total Events", value = events.Count } } };
+        
+        var allPropertyValues = events
+            .Where(e => e.PropertiesDict.ContainsKey(propertyName))
+            .SelectMany(e =>
+            {
+                var propValue = e.PropertiesDict[propertyName];
+                if (propValue is string s && s.StartsWith("[\"") && s.EndsWith("\"]"))
                 {
-                    var propValue = e.PropertiesDict[propertyName];
-                    if (propValue is string s && s.StartsWith("[\"") && s.EndsWith("\"]"))
-                    {
-                        // Simple array string-to-list-of-strings attempt
-                        try
-                        {
-                            // A quick (and risky) deserialization/parsing for the array string format 
-                            // e.g. ["PillarFall","VineClimbing"] -> "PillarFall", "VineClimbing"
-                            var arrayString = s.Trim('[', ']').Replace("\"", "");
-                            return arrayString.Split(',').Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim());
-                        }
-                        catch
-                        {
-                            // Fallback to treat it as a single string if parsing fails
-                            return new[] { s };
-                        }
-                    }
-                    // For non-array values, treat as a single string/value
-                    return new[] { propValue?.ToString() ?? "Unknown" };
-                })
-                .ToList();
+                    try { return s.Trim('[', ']').Replace("\"", "").Split(',').Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim()); }
+                    catch { return new[] { s }; }
+                }
+                return new[] { propValue?.ToString() ?? "Unknown" };
+            })
+            .ToList();
 
-            // Show property value distribution from the flattened list
-            var distribution = allPropertyValues
-                .GroupBy(key => key)
-                .Select(g => new { label = g.Key, value = g.Count() })
-                .OrderByDescending(x => x.value)
-                .Take(25) // Limit is 25
-                .ToList();
-
-            return new { type = "pie", data = distribution };
-        }
+        var distribution = allPropertyValues.GroupBy(key => key).Select(g => new { label = g.Key, value = g.Count() }).OrderByDescending(x => x.value).Take(25).ToList();
+        return new { type = "pie", data = distribution };
     }
 
     private object ProcessBarChart(List<AnalyticEventDocument> events, string propertyName, bool isEmptyProperty)
     {
         if (isEmptyProperty)
         {
-            // Show events by day
-            var dailyCounts = events
-                .GroupBy(e => e.Timestamp.Date)
-                .Select(g => new { label = g.Key.ToString("MMM dd"), value = g.Count() })
-                .OrderBy(x => x.label)
-                .Take(25) // Limit is 25
-                .ToList();
-
+            var dailyCounts = events.GroupBy(e => e.Timestamp.Date).Select(g => new { label = g.Key.ToString("MMM dd"), value = g.Count() }).OrderBy(x => x.label).Take(25).ToList();
             return new { type = "bar", data = dailyCounts };
         }
         else
         {
-            // FIX: Flatten array values before calculating distribution
             var allPropertyValues = events
                 .Where(e => e.PropertiesDict.ContainsKey(propertyName))
                 .SelectMany(e =>
@@ -222,80 +253,34 @@ public class CustomChartDataEndpoint : WebEndpoint
                     var propValue = e.PropertiesDict[propertyName];
                     if (propValue is string s && s.StartsWith("[\"") && s.EndsWith("\"]"))
                     {
-                        // Simple array string-to-list-of-strings attempt
-                        try
-                        {
-                            // A quick (and risky) deserialization/parsing for the array string format 
-                            // e.g. ["PillarFall","VineClimbing"] -> "PillarFall", "VineClimbing"
-                            var arrayString = s.Trim('[', ']').Replace("\"", "");
-                            return arrayString.Split(',').Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim());
-                        }
-                        catch
-                        {
-                            // Fallback to treat it as a single string if parsing fails
-                            return new[] { s };
-                        }
+                        try { return s.Trim('[', ']').Replace("\"", "").Split(',').Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim()); }
+                        catch { return new[] { s }; }
                     }
-                    // For non-array values, treat as a single string/value
                     return new[] { propValue?.ToString() ?? "Unknown" };
                 })
                 .ToList();
 
-            // Show property value distribution from the flattened list
-            var distribution = allPropertyValues
-                .GroupBy(key => key)
-                .Select(g => new { label = g.Key, value = g.Count() })
-                .OrderByDescending(x => x.value)
-                .Take(25) // Limit is 25
-                .ToList();
-
+            var distribution = allPropertyValues.GroupBy(key => key).Select(g => new { label = g.Key, value = g.Count() }).OrderByDescending(x => x.value).Take(25).ToList();
             return new { type = "bar", data = distribution };
         }
     }
 
     private object ProcessNumberCard(List<AnalyticEventDocument> events, string propertyName, bool isEmptyProperty)
     {
-        if (isEmptyProperty)
-        {
-            return new { 
-                type = "number", 
-                data = new { 
-                    total = events.Count,
-                    // New fields initialized to 0 for consistency
-                    sumValue = 0.0,
-                    avgValue = 0.0 
-                } 
-            };
-        }
-        else
-        {
-            var withProperty = events.Count(e => e.PropertiesDict.ContainsKey(propertyName));
-            
-            // Filter, parse, and calculate sum/average of the property values
-            var numericProperties = events
-                .Where(e => e.PropertiesDict.ContainsKey(propertyName))
-                .Select(e => e.PropertiesDict[propertyName]?.ToString())
-                .Where(s => double.TryParse(s, out _))
-                .Select(s => double.Parse(s))
-                .ToList();
+        if (isEmptyProperty) return new { type = "number", data = new { total = events.Count, sumValue = 0.0, avgValue = 0.0 } };
+        
+        var withProperty = events.Count(e => e.PropertiesDict.ContainsKey(propertyName));
+        var numericProperties = events
+            .Where(e => e.PropertiesDict.ContainsKey(propertyName))
+            .Select(e => e.PropertiesDict[propertyName]?.ToString())
+            .Where(s => double.TryParse(s, out _))
+            .Select(s => double.Parse(s))
+            .ToList();
 
-            var sumValue = numericProperties.Sum();
-            var avgValue = numericProperties.Any() ? numericProperties.Average() : 0.0;
+        var sumValue = numericProperties.Sum();
+        var avgValue = numericProperties.Any() ? numericProperties.Average() : 0.0;
+        var uniqueValues = numericProperties.Distinct().Count();
 
-            var uniqueValues = numericProperties.Distinct().Count();
-
-            return new { 
-                type = "number", 
-                data = new { 
-                    total = events.Count,
-                    withProperty, // Indicates how many events had the property
-                    uniqueValues,
-                    coverage = events.Count > 0 ? (withProperty * 100.0 / events.Count) : 0,
-                    // Return sum and average
-                    sumValue = sumValue,
-                    avgValue = avgValue
-                }
-            };
-        }
+        return new { type = "number", data = new { total = events.Count, withProperty, uniqueValues, coverage = events.Count > 0 ? (withProperty * 100.0 / events.Count) : 0, sumValue = sumValue, avgValue = avgValue } };
     }
 }

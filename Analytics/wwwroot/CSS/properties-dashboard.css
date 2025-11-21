@@ -53,7 +53,8 @@
     display: flex;
     gap: 1rem;
     justify-content: flex-end;
-    margin-top: 1.5rem;
+    margin-top: auto;
+    padding-top: 1rem;
 }
 
 /* Configured Charts Section */
@@ -80,7 +81,7 @@
     font-size: 1.2rem;
 }
 
-/* Action Buttons (used inside chart widgets, kept here for dependency) */
+/* Action Buttons */
 .chart-widget-actions .table-action {
     background: rgba(218, 135, 39, 0.2);
     border: 1px solid rgba(218, 135, 39, 0.5);
@@ -144,6 +145,8 @@
     max-height: 80vh;
     overflow: hidden;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-header {
@@ -188,31 +191,94 @@
     overflow: hidden;
 }
 
-/* --- Modal Split Layout (Form/Preview) --- */
+/* --- Modal Split Layout (3 Columns) --- */
 
 .modal-body-split {
     display: flex;
     justify-content: space-between;
     padding: 20px;
     gap: 20px;
+    height: 100%;
+    overflow-y: auto;
 }
 
 #chart-config-form {
-    flex: 1;
-    min-width: 300px;
+    flex: 1; /* Standard width for inputs */
+    min-width: 250px;
+    display: flex;
+    flex-direction: column;
+}
+
+#filter-config-column {
+    flex: 2; /* INCREASED: Makes this column 2x wider than the form */
+    min-width: 380px; /* INCREASED: Ensures it doesn't get too small */
+    display: flex;
+    flex-direction: column;
 }
 
 #config-preview-column {
-    flex: 2;
-    min-width: 400px;
+    flex: 1.5; /* Keeps preview relatively large */
+    min-width: 350px;
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-box {
     background-color: #2a2a2a;
-    padding: 15px;
+    padding: 20px;
     border-radius: 8px;
     border: 1px solid #444;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* --- Filter Rows Styling --- */
+.filter-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #444;
+}
+
+.filter-row select,
+.filter-row input {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid #555;
+    color: #eee;
+    padding: 5px;
+    border-radius: 3px;
+    font-size: 0.9rem;
+}
+
+.filter-row .filter-prop {
+    flex: 2;
+    min-width: 0;
+}
+
+.filter-row .filter-op {
+    flex: 0 0 60px;
+}
+
+.filter-row .filter-val {
+    flex: 1;
+    min-width: 0;
+}
+
+.filter-row .remove-filter-btn {
+    background: none;
+    border: none;
+    color: #ff5252;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0 5px;
+    line-height: 1;
+}
+
+.filter-row .remove-filter-btn:hover {
+    color: #ff1744;
 }
 
 /* Form Styles */
@@ -241,7 +307,8 @@
 }
 
 .form-group input:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-group textarea:focus {
     outline: none;
     border-color: rgb(218, 135, 39);
     background: rgba(255, 255, 255, 0.15);
@@ -258,28 +325,31 @@
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
-    .section-header {
-        flex-direction: column;
-        align-items: stretch;
+@media (max-width: 1200px) {
+    .modal-content.large {
+        width: 98%;
     }
+}
 
-    .modal-content {
-        width: 95%;
-        margin: 1rem;
-    }
-
+@media (max-width: 1024px) {
     .modal-body-split {
-        flex-direction: column;
+        flex-direction: column; /* Stack them on tablets/small screens */
         gap: 15px;
-        padding: 15px;
     }
 
     #chart-config-form,
+    #filter-config-column,
     #config-preview-column {
         min-width: auto;
         width: 100%;
         flex: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .section-header {
+        flex-direction: column;
+        align-items: stretch;
     }
 
     .configured-charts {
@@ -306,49 +376,6 @@
     .analytics-grid {
         grid-template-columns: 1fr;
     }
-}
-
-/* Category filters styling */
-.category-filters {
-    margin-bottom: 2rem;
-    background: rgba(42, 42, 42, 0.7);
-    border-radius: 8px;
-    padding: 1.5rem;
-    backdrop-filter: blur(5px);
-}
-
-.category-filters h3 {
-    margin: 0 0 1rem 0;
-    color: #eee;
-    font-size: 1.2rem;
-}
-
-.chips-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.category-chip {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid #555;
-    border-radius: 20px;
-    padding: 0.5rem 1rem;
-    color: #ccc;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
-}
-
-.category-chip:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: #777;
-}
-
-.category-chip.active {
-    background: rgba(218, 135, 39, 0.2);
-    border-color: rgb(218, 135, 39);
-    color: rgb(218, 135, 39);
 }
 
 /* Custom Charts Dashboard Styles (General Layout) */
@@ -420,11 +447,13 @@
 
 /* Modal Styles */
 .modal-content.large {
-    max-width: 1000px;
+    max-width: 1200px; /* Ensure the modal is wide enough */
 }
 
 /* Chart Preview Container (in modal) */
 #preview-chart-container {
     height: 400px;
     margin-top: 10px;
+    flex: 1;
 }
+

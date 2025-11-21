@@ -91,7 +91,7 @@
 </main>
 
 <div id="config-modal" class="modal hidden">
-    <div class="modal-content large" style="width: 1000px; max-width: 95vw;">
+    <div class="modal-content large" style="width: 1200px; max-width: 95vw;">
         <div class="modal-header">
             <h3>Configure Chart</h3>
             <button class="modal-close" id="config-modal-close">&times;</button>
@@ -100,10 +100,11 @@
         <div class="modal-body modal-body-split">
 
             <form id="chart-config-form" class="modal-box">
+                <h4 style="margin-top: 0; margin-bottom: 15px; color: rgb(218, 135, 39);">Basic Settings</h4>
                 <div class="form-group">
                     <label for="config-display-name">Chart Name *</label>
                     <input type="text" id="config-display-name" required
-                           placeholder="Enter a descriptive name for your chart">
+                           placeholder="Enter a descriptive name">
                 </div>
 
                 <div class="form-group">
@@ -114,11 +115,10 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="config-property">Property to Analyze (Optional)</label>
+                    <label for="config-property">Property (Optional)</label>
                     <select id="config-property">
                         <option value="">Event Count (default)</option>
                     </select>
-                    <small>Leave empty to count events, or select a property to analyze its values</small>
                 </div>
 
                 <div class="form-group">
@@ -138,8 +138,21 @@
                 </div>
             </form>
 
+            <div id="filter-config-column" class="modal-box" style="display: flex; flex-direction: column;">
+                <h4 style="margin-top: 0; margin-bottom: 15px; color: rgb(218, 135, 39);">Conditions</h4>
+
+                <div id="filter-rows-container" style="flex: 1; overflow-y: auto; margin-bottom: 10px; padding-right: 5px;">
+                </div>
+
+                <button type="button" id="add-filter-btn" class="control-btn secondary" style="width: 100%; padding: 8px;">
+                    <span class="btn-icon">➕</span> Add Condition
+                </button>
+
+                <input type="hidden" id="config-filters-json">
+            </div>
+
             <div id="config-preview-column" class="modal-box">
-                <h4 style="margin-top: 0;">Live Preview</h4>
+                <h4 style="margin-top: 0; margin-bottom: 15px; color: rgb(218, 135, 39);">Live Preview</h4>
                 <div id="preview-chart-container">
                     <canvas id="preview-chart-canvas"></canvas>
                 </div>
