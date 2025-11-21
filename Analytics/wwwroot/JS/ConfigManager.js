@@ -181,6 +181,70 @@ class ConfigManager {
         await Promise.allSettled(chartRenderPromises);
     }
 
+    async fetchAndRenderSingleChart(configId, isNew = false) {
+        const config = this.dashboard.chartConfigs.find(c => c.id === configId);
+        if (!config) return;
+
+        const container = document.getElementById('charts-grid');
+        if (!container) return;
+
+        let chartElement;
+
+        // If updating an existing chart
+        if (!isNew) {
+            chartElement = document.querySelector(`.chart-widget[data-chart-id="${configId}"]`);
+        }
+
+        // If it's a new chart or the element doesn't exist (e.g., initial load)
+        if (!chartElement) {
+            chartElement = this.createChartSkeleton(container, config);
+        } else {
+            // For update, just reset the content to show the loading state
+            const chartHeight = config.chartType === 'NumberCard' ? '150px' : '300px';
+            chartElement.className = config.chartType === 'NumberCard' ? 'chart-widget small' : 'chart-widget';
+            chartElement.innerHTML = `
+                <div class="chart-widget-header">
+                    <h4>${config.displayName || config.eventKey}</h4>
+                    <div class="chart-widget-actions">
+                        <button class="table-action" onclick="propertiesDashboard.configManager.editChart('${config.id}')">Edit</button>
+                        <button class="table-action delete" onclick="propertiesDashboard.configManager.deleteChart('${config.id}')">Delete</button>
+                    </div>
+                </div>
+                <div class="chart-container" style="height: ${chartHeight};">
+                    <div id="loading-${config.id}" class="loading-spinner-container">
+                        <div class="loading-spinner"></div>
+                        <p>Loading data...</p>
+                    </div>
+                    <canvas id="chart-${config.id}" class="hidden-canvas"></canvas>
+                </div>
+                <div class="chart-info">
+                    <small>Event: ${config.eventKey} | Type: ${config.chartType}${config.propertyToDisplay ? ` | Property: ${config.propertyToDisplay}` : ''}</small>
+                </div>
+            `;
+            // Ensure the element is in the right place based on displayOrder
+            const sortedConfigs = [...this.dashboard.chartConfigs].sort((a, b) =>
+                (a.displayOrder || 0) - (b.displayOrder || 0)
+            );
+            const index = sortedConfigs.findIndex(c => c.id === configId);
+            const nextConfig = sortedConfigs[index + 1];
+
+            if (nextConfig) {
+                const nextElement = document.querySelector(`.chart-widget[data-chart-id="${nextConfig.id}"]`);
+                if (nextElement && nextElement !== chartElement) {
+                    container.insertBefore(chartElement, nextElement);
+                }
+            } else {
+                // It's the last element
+                container.appendChild(chartElement);
+            }
+        }
+
+        // Re-setup drag and drop to include the new/updated element
+        this.dragDropManager.setupDragAndDrop(container);
+
+        await this.fetchAndRenderChart(chartElement, config);
+    }
+
     async fetchAndRenderChart(chartElement, config) {
         const chartId = `chart-${config.id}`;
         const loadingContainer = document.getElementById(`loading-${config.id}`);
@@ -195,10 +259,17 @@ class ConfigManager {
 
             if (config.chartType === 'BarChart') {
                 const dataCount = chartData?.data?.length || 0;
+                // Update size class based on data count
                 if (dataCount > 10) {
                     chartElement.classList.add('large');
+                } else {
+                    chartElement.classList.remove('large');
                 }
+            } else if (config.chartType !== 'NumberCard') {
+                // Ensure non-BarChart/NumberCard elements are not 'large'
+                chartElement.classList.remove('large');
             }
+
 
             if (chartData) {
                 this.dashboard.chartManager.renderChart(chartId, chartData, config.chartType, config);
@@ -250,7 +321,32 @@ class ConfigManager {
             </div>
         `;
 
-        container.appendChild(chartElement);
+        // Find the correct insertion point based on displayOrder
+        const sortedConfigs = [...this.dashboard.chartConfigs].sort((a, b) =>
+            (a.displayOrder || 0) - (b.displayOrder || 0)
+        );
+
+        const configIndex = sortedConfigs.findIndex(c => c.id === config.id);
+
+        if (configIndex >= 0) {
+            let inserted = false;
+            for (let i = 0; i < container.children.length; i++) {
+                const childId = container.children[i].getAttribute('data-chart-id');
+                const childConfig = this.dashboard.chartConfigs.find(c => c.id === childId);
+
+                if (childConfig && (childConfig.displayOrder || 0) > (config.displayOrder || 0)) {
+                    container.insertBefore(chartElement, container.children[i]);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) {
+                container.appendChild(chartElement);
+            }
+        } else {
+            container.appendChild(chartElement);
+        }
+
         return chartElement;
     }
 
@@ -258,11 +354,17 @@ class ConfigManager {
         if (canvas) {
             canvas.classList.remove('hidden');
             const ctx = canvas.getContext('2d');
+
+            // Set canvas dimensions if they are 0 (can happen if the container is hidden or just rendered)
+            const width = canvas.width > 0 ? canvas.width : 300;
+            const height = canvas.height > 0 ? canvas.height : 300;
+            if (canvas.width === 0) canvas.width = width;
+            if (canvas.height === 0) canvas.height = height;
+
+            ctx.clearRect(0, 0, width, height);
             ctx.font = '16px Arial';
             ctx.fillStyle = '#f44336';
             ctx.textAlign = 'center';
-            const width = canvas.width || 300;
-            const height = canvas.height || 300;
             ctx.fillText(message, width / 2, height / 2);
         }
     }
@@ -339,9 +441,12 @@ class ConfigManager {
     }
 
     async saveChartConfig() {
+        const isNewConfig = this.editingChartId === null;
+        let configId = this.editingChartId;
+
         try {
             const formData = {
-                id: this.editingChartId,
+                id: configId,
                 projectId: this.dashboard.currentProject,
                 eventKey: document.getElementById('config-event-key').value,
                 displayName: document.getElementById('config-display-name').value,
@@ -362,11 +467,35 @@ class ConfigManager {
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
-                    toastManager.success(`Chart configuration ${this.editingChartId ? 'updated' : 'saved'}!`);
+                    configId = data.data.configId; // Get the new ID from the backend if it was a new config
+                    formData.id = configId; // Update formData with the new ID
+
+                    toastManager.success(`Chart configuration ${isNewConfig ? 'saved' : 'updated'}!`);
                     this.hideConfigModal();
-                    this.dashboard.loadChartConfigurations();
+
+                    // --- START EFFICIENT UPDATE ---
+                    if (isNewConfig) {
+                        this.dashboard.chartConfigs.push(formData); // Add new config to the list
+                    } else {
+                        const existingIndex = this.dashboard.chartConfigs.findIndex(c => c.id === configId);
+                        if (existingIndex > -1) {
+                            this.dashboard.chartConfigs[existingIndex] = formData; // Replace existing config
+                        }
+                    }
+
+                    // Re-sort the configs array by displayOrder (crucial for correct insertion/update)
+                    this.dashboard.chartConfigs.sort((a, b) =>
+                        (a.displayOrder || 0) - (b.displayOrder || 0)
+                    );
+
+                    // Only re-render the single chart, no full page reload
+                    await this.fetchAndRenderSingleChart(configId, isNewConfig);
+                    // --- END EFFICIENT UPDATE ---
+
                     this.editingChartId = null;
                 }
+            } else {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
         } catch (error) {
             console.error('Error saving chart config:', error);
@@ -417,7 +546,23 @@ class ConfigManager {
                     const result = await response.json();
                     if (result.success) {
                         toastManager.success('Chart deleted!');
-                        this.dashboard.loadChartConfigurations();
+
+                        // --- START EFFICIENT DELETE ---
+                        // 1. Remove from the local configuration list
+                        this.dashboard.chartConfigs = this.dashboard.chartConfigs.filter(c => c.id !== configId);
+
+                        // 2. Remove the chart's element from the DOM
+                        const chartElement = document.querySelector(`.chart-widget[data-chart-id="${configId}"]`);
+                        if (chartElement) {
+                            // Also destroy the Chart.js instance if it exists
+                            this.dashboard.chartManager.clearCanvas(`chart-${configId}`);
+                            chartElement.remove();
+                        }
+
+                        // 3. Update the display orders of all remaining charts
+                        await this.saveChartOrder();
+                        // --- END EFFICIENT DELETE ---
+
                         this.hideManageModal();
                     } else {
                         throw new Error(result.message);
@@ -442,6 +587,7 @@ class ConfigManager {
         const config = this.dashboard.chartConfigs.find(c => c.id === configId);
         if (!config) return;
 
+        // Sort a temporary copy of the configs list
         const sortedConfigs = [...this.dashboard.chartConfigs].sort((a, b) =>
             (a.displayOrder || 0) - (b.displayOrder || 0)
         );
@@ -456,27 +602,37 @@ class ConfigManager {
             return;
         }
 
-        const tempOrder = config.displayOrder;
-        config.displayOrder = sortedConfigs[newIndex].displayOrder;
-        sortedConfigs[newIndex].displayOrder = tempOrder;
+        // Swap display orders in the temporary sorted list
+        const currentConfigInSorted = sortedConfigs[currentIndex];
+        const targetConfigInSorted = sortedConfigs[newIndex];
 
-        this.dashboard.chartConfigs = sortedConfigs;
+        // Use the index as the new display order for both and send to backend
+        currentConfigInSorted.displayOrder = newIndex;
+        targetConfigInSorted.displayOrder = currentIndex;
+
+        // Update the main array
+        this.dashboard.chartConfigs.find(c => c.id === currentConfigInSorted.id).displayOrder = newIndex;
+        this.dashboard.chartConfigs.find(c => c.id === targetConfigInSorted.id).displayOrder = currentIndex;
 
         await this.saveChartOrder();
         this.renderChartsList();
+        this.renderConfiguredCharts();
     }
 
     async saveChartOrder() {
         try {
+            // Sort the main config array locally to ensure correct display order values
             const sortedConfigs = [...this.dashboard.chartConfigs].sort((a, b) =>
                 (a.displayOrder || 0) - (b.displayOrder || 0)
             );
 
+            // Re-assign explicit display orders 0, 1, 2, ...
             const orders = sortedConfigs.map((config, index) => ({
                 id: config.id,
                 displayOrder: index
             }));
 
+            // Update local configs with explicit index-based display orders
             orders.forEach(order => {
                 const config = this.dashboard.chartConfigs.find(c => c.id === order.id);
                 if (config) {
