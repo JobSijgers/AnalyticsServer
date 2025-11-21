@@ -187,7 +187,9 @@ class ChartManager {
 
             if (hasData) {
                 if (chartType === 'LineChart') {
-                    const valueField = chartData.data?.some(item => item.value !== undefined && item.value !== 0) ? 'value' : 'count';
+                    // When a property is selected, the backend returns count. Otherwise, it uses value/count for time-series.
+                    const isDistribution = !!config?.propertyToDisplay && !dataArray.every(item => item.date?.includes(' '));
+                    const valueField = isDistribution ? 'count' : (dataArray.some(item => item.value !== undefined && item.value !== 0) ? 'value' : 'count');
                     isMeaningful = dataArray.some(item => item[valueField] > 0);
                 } else if (chartType === 'BarChart' || chartType === 'PieChart') {
                     isMeaningful = dataArray.some(item => item.value > 0);
@@ -257,14 +259,22 @@ class ChartManager {
 
         if (chartType === 'LineChart') {
 
-            const valueField = chartData.data?.some(item => item.value !== undefined && item.value !== 0) ? 'value' : 'count';
+            const isDistribution = !!chartData.data?.some(item => !item.date?.includes(' ')) && !chartData.data?.some(item => item.date?.includes('-'));
+
+            // If a property is selected and it's not time-series (i.e., property distribution), 
+            // the backend returns data with 'date' as property value and 'count' as event count.
+            // If it is time-series and has a value, use 'value'. Otherwise, use 'count'.
+            const valueField = isDistribution ? 'count' : (chartData.data?.some(item => item.value !== undefined && item.value !== 0) ? 'value' : 'count');
+            const labelText = isDistribution ? 'Event Count' : (valueField === 'value' ? 'Average Value' : 'Event Count');
 
             chartConfig = {
                 type: 'line',
                 data: {
+                    // For property distribution, 'date' holds the property value (e.g., '0', '1', '2')
+                    // For time series, 'date' holds the formatted date (e.g., 'Nov 01')
                     labels: chartData.data?.map(item => item.date) || [],
                     datasets: [{
-                        label: valueField === 'value' ? 'Average Value' : 'Event Count',
+                        label: labelText,
                         data: chartData.data?.map(item => item[valueField]) || [],
                         backgroundColor: 'rgb(218, 135, 39)',
                         borderColor: 'rgb(218, 135, 39)',
@@ -291,6 +301,10 @@ class ChartManager {
                             }
                         },
                         x: {
+                            // If it's a property distribution chart, ensure labels are treated as categories
+                            type: isDistribution ? 'category' : 'time',
+                            // Time parsing is too complex to fix easily without Date objects or a library like Luxon. 
+                            // Sticking to 'category' for distribution and letting Chart.js infer for time series.
                             grid: {
                                 color: 'rgba(255,255,255,0.1)'
                             },

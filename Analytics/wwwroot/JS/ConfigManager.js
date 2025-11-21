@@ -33,10 +33,6 @@ class ConfigManager {
         document.getElementById('config-chart-type').addEventListener('change', () => {
             this.updatePreview();
         });
-
-        document.getElementById('manage-modal-close').addEventListener('click', () => {
-            this.hideManageModal();
-        });
     }
 
     showConfigModal() {
@@ -47,7 +43,8 @@ class ConfigManager {
         document.getElementById('chart-config-form').reset();
 
         if (this.editingChartId === null) {
-            document.getElementById('config-display-order').value = this.dashboard.chartConfigs.length;
+            // Display order is no longer set from the input field; drag-drop handles the default/update.
+            // document.getElementById('config-display-order').value = this.dashboard.chartConfigs.length;
             document.getElementById('config-save-btn').textContent = 'Save Chart';
         }
 
@@ -59,17 +56,6 @@ class ConfigManager {
         const modal = document.getElementById('config-modal');
         modal.classList.add('hidden');
         this.editingChartId = null;
-    }
-
-    showManageModal() {
-        const modal = document.getElementById('manage-modal');
-        modal.classList.remove('hidden');
-        this.renderChartsList();
-    }
-
-    hideManageModal() {
-        const modal = document.getElementById('manage-modal');
-        modal.classList.add('hidden');
     }
 
     async loadEventKeysForConfig() {
@@ -257,19 +243,20 @@ class ConfigManager {
 
             if (loadingContainer) loadingContainer.remove();
 
-            if (config.chartType === 'BarChart') {
-                const dataCount = chartData?.data?.length || 0;
-                // Update size class based on data count
+            const dataCount = chartData?.data?.length || 0;
+
+            if (config.chartType === 'BarChart' || config.chartType === 'LineChart') {
+                // Apply 'large' class if there are more than 10 data points
                 if (dataCount > 10) {
                     chartElement.classList.add('large');
                 } else {
                     chartElement.classList.remove('large');
                 }
-            } else if (config.chartType !== 'NumberCard') {
-                // Ensure non-BarChart/NumberCard elements are not 'large'
+            }
+            // Ensure other chart types are not 'large'
+            else if (config.chartType !== 'NumberCard') {
                 chartElement.classList.remove('large');
             }
-
 
             if (chartData) {
                 this.dashboard.chartManager.renderChart(chartId, chartData, config.chartType, config);
@@ -404,42 +391,6 @@ class ConfigManager {
         return null;
     }
 
-    renderChartsList() {
-        const container = document.getElementById('charts-list');
-        if (!container) return;
-
-        container.innerHTML = '';
-
-        if (this.dashboard.chartConfigs.length === 0) {
-            container.innerHTML = '<div class="no-charts-message">No charts configured yet.</div>';
-            return;
-        }
-
-        const sortedConfigs = [...this.dashboard.chartConfigs].sort((a, b) =>
-            (a.displayOrder || 0) - (b.displayOrder || 0)
-        );
-
-        sortedConfigs.forEach((config, index) => {
-            const listItem = document.createElement('div');
-            listItem.className = 'chart-list-item';
-            listItem.innerHTML = `
-                <div class="chart-list-info">
-                    <div class="chart-list-name">${config.displayName || config.eventKey}</div>
-                    <div class="chart-list-details">
-                        Event: ${config.eventKey} | Type: ${config.chartType}${config.propertyToDisplay ? ` | Property: ${config.propertyToDisplay}` : ''}
-                    </div>
-                </div>
-                <div class="chart-list-actions">
-                    <button class="table-action" onclick="propertiesDashboard.configManager.editChart('${config.id}')">Edit</button>
-                    <button class="table-action" onclick="propertiesDashboard.configManager.moveChart('${config.id}', 'up')" ${index === 0 ? 'disabled' : ''}>↑</button>
-                    <button class="table-action" onclick="propertiesDashboard.configManager.moveChart('${config.id}', 'down')" ${index === sortedConfigs.length - 1 ? 'disabled' : ''}>↓</button>
-                    <button class="table-action delete" onclick="propertiesDashboard.configManager.deleteChart('${config.id}')">Delete</button>
-                </div>
-            `;
-            container.appendChild(listItem);
-        });
-    }
-
     async saveChartConfig() {
         const isNewConfig = this.editingChartId === null;
         let configId = this.editingChartId;
@@ -452,7 +403,8 @@ class ConfigManager {
                 displayName: document.getElementById('config-display-name').value,
                 chartType: document.getElementById('config-chart-type').value,
                 propertyToDisplay: document.getElementById('config-property').value,
-                displayOrder: parseInt(document.getElementById('config-display-order').value) || 0,
+                // The Display Order field is removed, so we default to the end if new, or keep existing value if updating
+                displayOrder: isNewConfig ? this.dashboard.chartConfigs.length : this.dashboard.chartConfigs.find(c => c.id === configId)?.displayOrder || 0,
                 isEnabled: true
             };
 
@@ -512,7 +464,7 @@ class ConfigManager {
 
             document.getElementById('config-display-name').value = config.displayName;
             document.getElementById('config-chart-type').value = config.chartType;
-            document.getElementById('config-display-order').value = config.displayOrder;
+            // Removed: document.getElementById('config-display-order').value = config.displayOrder;
 
             document.getElementById('config-save-btn').textContent = 'Update Chart';
 
@@ -562,8 +514,6 @@ class ConfigManager {
                         // 3. Update the display orders of all remaining charts
                         await this.saveChartOrder();
                         // --- END EFFICIENT DELETE ---
-
-                        this.hideManageModal();
                     } else {
                         throw new Error(result.message);
                     }
@@ -575,48 +525,6 @@ class ConfigManager {
                 toastManager.error('Failed to delete chart: ' + error.message);
             }
         }
-    }
-
-    async moveChart(configId, direction) {
-        const chartElement = document.querySelector(`.chart-widget[data-chart-id="${configId}"]`);
-        if (chartElement) {
-            chartElement.classList.add('flash-move');
-            setTimeout(() => chartElement.classList.remove('flash-move'), 500);
-        }
-
-        const config = this.dashboard.chartConfigs.find(c => c.id === configId);
-        if (!config) return;
-
-        // Sort a temporary copy of the configs list
-        const sortedConfigs = [...this.dashboard.chartConfigs].sort((a, b) =>
-            (a.displayOrder || 0) - (b.displayOrder || 0)
-        );
-        const currentIndex = sortedConfigs.findIndex(c => c.id === configId);
-        let newIndex;
-
-        if (direction === 'up' && currentIndex > 0) {
-            newIndex = currentIndex - 1;
-        } else if (direction === 'down' && currentIndex < sortedConfigs.length - 1) {
-            newIndex = currentIndex + 1;
-        } else {
-            return;
-        }
-
-        // Swap display orders in the temporary sorted list
-        const currentConfigInSorted = sortedConfigs[currentIndex];
-        const targetConfigInSorted = sortedConfigs[newIndex];
-
-        // Use the index as the new display order for both and send to backend
-        currentConfigInSorted.displayOrder = newIndex;
-        targetConfigInSorted.displayOrder = currentIndex;
-
-        // Update the main array
-        this.dashboard.chartConfigs.find(c => c.id === currentConfigInSorted.id).displayOrder = newIndex;
-        this.dashboard.chartConfigs.find(c => c.id === targetConfigInSorted.id).displayOrder = currentIndex;
-
-        await this.saveChartOrder();
-        this.renderChartsList();
-        this.renderConfiguredCharts();
     }
 
     async saveChartOrder() {

@@ -51,10 +51,6 @@ class PropertiesDashboard {
             this.configManager.showConfigModal();
         });
 
-        document.getElementById('manage-charts-btn').addEventListener('click', () => {
-            this.configManager.showManageModal();
-        });
-
         document.getElementById('retry-btn').addEventListener('click', () => {
             this.refreshDashboard();
         });

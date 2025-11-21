@@ -82,7 +82,7 @@ public class CustomChartDataEndpoint : WebEndpoint
     {
         if (isEmptyProperty)
         {
-            // Count events over time
+            // Existing logic: Count events over time
             var dailyCounts = events
                 .GroupBy(e => e.Timestamp.Date)
                 .Select(g => new { Date = g.Key, Count = g.Count() })
@@ -102,32 +102,46 @@ public class CustomChartDataEndpoint : WebEndpoint
         }
         else
         {
-            // Show property value distribution over time (simplified)
-            var dailyPropertyValues = events
+            // Updated Logic: Show property value distribution sorted by COUNT (value) DESCENDING
+
+            // 1. Flatten all property values (handling array strings)
+            var allPropertyValues = events
                 .Where(e => e.PropertiesDict.ContainsKey(propertyName))
-                .GroupBy(e => e.Timestamp.Date)
-                .Select(g => new { 
-                    Date = g.Key, 
-                    Count = g.Count(),
-                    // FIX: Robustly parse property values to double, filtering out non-numeric entries
-                    AvgValue = g.Where(e => double.TryParse(e.PropertiesDict[propertyName]?.ToString(), out _))
-                                .DefaultIfEmpty() // Needed if the Where filter makes the group empty
-                                .Average(e => e != null ? double.Parse(e.PropertiesDict[propertyName]?.ToString() ?? "0") : 0)
+                .SelectMany(e =>
+                {
+                    var propValue = e.PropertiesDict[propertyName];
+                    if (propValue is string s && s.StartsWith("[\"") && s.EndsWith("\"]"))
+                    {
+                        try
+                        {
+                            var arrayString = s.Trim('[', ']').Replace("\"", "");
+                            return arrayString.Split(',').Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim());
+                        }
+                        catch
+                        {
+                            return new[] { s };
+                        }
+                    }
+                    return new[] { propValue?.ToString() ?? "Unknown" };
                 })
-                .OrderBy(x => x.Date)
                 .ToList();
 
-            var result = new List<object>();
-            for (var i = 0; i < days; i++)
-            {
-                var date = DateTime.UtcNow.Date.AddDays(-days + i + 1);
-                var dailyData = dailyPropertyValues.FirstOrDefault(d => d.Date == date);
-                result.Add(new { 
-                    date = date.ToString("MMM dd"), 
-                    count = dailyData?.Count ?? 0,
-                    value = dailyData?.AvgValue ?? 0
-                });
-            }
+            // 2. Calculate distribution
+            var distribution = allPropertyValues
+                .GroupBy(key => key)
+                .Select(g => new { label = g.Key, value = g.Count() });
+
+            // NEW SORTING LOGIC: Sort by count (value) descending, then by label for consistency
+            var sortedDistribution = distribution
+                .OrderByDescending(x => x.value) 
+                .ThenBy(x => x.label) 
+                .Take(50) 
+                .ToList();
+            
+            // 3. Map to the line chart's expected 'date' (X-axis) and 'count' (Y-axis) fields.
+            var result = sortedDistribution
+                .Select(d => new { date = d.label, count = d.value })
+                .ToList<object>();
 
             return new { type = "line", data = result };
         }

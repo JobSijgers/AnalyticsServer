@@ -78,10 +78,6 @@
             <div class="section-header">
                 <h3>Your Analytics</h3>
                 <div class="section-actions">
-                    <button id="manage-charts-btn" class="control-btn secondary">
-                        <span class="btn-icon">⚙️</span>
-                        Manage Charts
-                    </button>
                     <button id="new-chart-btn" class="control-btn">
                         <span class="btn-icon">➕</span>
                         New Chart
@@ -136,12 +132,6 @@
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label for="config-display-order">Display Order</label>
-                    <input type="number" id="config-display-order" min="0" value="0">
-                    <small>Lower numbers appear first</small>
-                </div>
-
                 <div class="form-actions">
                     <button type="button" class="control-btn secondary" id="config-cancel-btn">Cancel</button>
                     <button type="submit" class="control-btn" id="config-save-btn">Save Chart</button>
@@ -162,25 +152,12 @@
     </div>
 </div>
 
-<div id="manage-modal" class="modal hidden">
-    <div class="modal-content large">
-        <div class="modal-header">
-            <h3>Manage Charts</h3>
-            <button class="modal-close" id="manage-modal-close">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div id="charts-list" class="charts-list">
-            </div>
-        </div>
-    </div>
-</div>
-
 <script src="js/ToastManager.js"></script>
 <script src="js/TokenManager.js"></script>
 <script src="js/Particles.js"></script>
 <script src="js/UIManager.js"></script>
 <script src="js/ChartManager.js"></script>
-<script src="js/DragDropManager.js"></script>  
+<script src="js/DragDropManager.js"></script>
 <script src="js/ConfigManager.js"></script>
 <script src="js/PropertiesDashboard.js"></script>
 </body>
