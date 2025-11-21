@@ -14,7 +14,7 @@ class PropertiesDashboard {
 
     checkAuthentication() {
         if (!tokenManager.hasToken()) {
-            console.log('No authentication token, waiting for redirect...');
+            window.location.href = 'index.html';
             return;
         }
     }
@@ -59,7 +59,6 @@ class PropertiesDashboard {
     saveCurrentProject(projectId) {
         if (projectId) {
             localStorage.setItem('khs_analytics_projectId', projectId);
-            console.log(`Saved current project ID: ${projectId}`);
         } else {
             localStorage.removeItem('khs_analytics_projectId');
         }
@@ -74,11 +73,9 @@ class PropertiesDashboard {
             await tokenManager.logout();
             toastManager.success('Logged out successfully');
             this.saveCurrentProject(null);
-
             setTimeout(() => {
                 window.location.href = 'index.html';
             }, 1000);
-
         } catch (error) {
             console.error('Logout error:', error);
             toastManager.error('Logout failed');
@@ -101,12 +98,10 @@ class PropertiesDashboard {
                 this.uiManager.populateProjectSelect(data.projects);
 
                 const savedProject = this.getSavedProject();
-
                 let projectToSelect = data.projects[0];
 
                 if (savedProject && data.projects.includes(savedProject)) {
                     projectToSelect = savedProject;
-                    console.log(`Restoring saved project: ${projectToSelect}`);
                 } else {
                     this.saveCurrentProject(projectToSelect);
                 }
@@ -121,7 +116,6 @@ class PropertiesDashboard {
         } catch (error) {
             console.error('Error loading projects:', error);
             this.uiManager.showErrorState('Failed to load projects: ' + error.message);
-            toastManager.error('Failed to load projects');
         }
     }
 
@@ -137,7 +131,6 @@ class PropertiesDashboard {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('Chart configs API response:', data);
 
                 if (data.success && data.data) {
                     this.chartConfigs = data.data.configs || [];
