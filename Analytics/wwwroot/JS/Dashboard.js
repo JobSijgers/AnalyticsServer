@@ -1,0 +1,343 @@
+class BaseDashboard {
+    constructor() {
+        this.baseUrl = 'http://localhost:5000/api';
+        this.chartManager = new ChartManager(this);
+        this.configManager = new ConfigManager(this);
+        this.chartConfigs = [];
+        this.currentData = null;
+        this.currentProject = localStorage.getItem('khs_analytics_projectId');
+    }
+
+    checkAuthentication() {
+        if (!tokenManager.hasToken()) {
+            window.location.href = 'index.html';
+        }
+    }
+
+    async handleLogout() {
+        await tokenManager.logout();
+        window.location.href = 'index.html';
+    }
+
+    showError(msg) {
+        const err = document.getElementById('error-state');
+        err.classList.remove('hidden');
+        document.getElementById('error-message').textContent = msg;
+        const content = document.getElementById(this.isGlobal ? 'global-charts-section' : 'dashboard-content');
+        if (content) content.classList.add('hidden');
+        document.getElementById('loading-state').classList.add('hidden');
+    }
+
+    truncateText(text, maxLength) {
+        if (!text) return '';
+        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    }
+
+    async loadChartConfigurations(projectId) {
+        try {
+            const response = await tokenManager.authenticatedFetch(
+                `${this.baseUrl}/event-config?projectId=${encodeURIComponent(projectId)}`
+            );
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.data && data.data.configs) {
+                    this.chartConfigs = data.data.configs || [];
+                } else {
+                    this.chartConfigs = [];
+                }
+
+                // CRITICAL CHANGE: Do NOT await renderConfiguredCharts.
+                // We rely on the internal change in ConfigManager to start rendering charts
+                // without blocking this method, but we must ensure the configs are loaded.
+                this.configManager.renderConfiguredCharts();
+                return true;
+            }
+        } catch (error) {
+            console.error(error);
+            return false;
+        }
+    }
+}
+
+class ProjectDashboard extends BaseDashboard {
+    constructor() {
+        super();
+        this.isGlobal = false;
+        if (!this.currentProject) {
+            window.location.href = 'dashboard.html';
+        }
+        this.checkAuthentication();
+        this.bindEvents();
+        this.init();
+    }
+
+    bindEvents() {
+        document.getElementById('logout-btn').addEventListener('click', () => this.handleLogout());
+        document.getElementById('refresh-btn').addEventListener('click', () => this.loadDashboardData(true));
+        document.getElementById('project-select').addEventListener('change', (e) => {
+            this.currentProject = e.target.value;
+            localStorage.setItem('khs_analytics_projectId', this.currentProject);
+            this.loadDashboardData(true);
+        });
+        document.getElementById('date-range').addEventListener('change', () => this.loadDashboardData(true));
+        const newChartBtn = document.getElementById('new-chart-btn');
+        if(newChartBtn) {
+            newChartBtn.addEventListener('click', () => this.configManager.showConfigModal());
+        }
+        const createFirstBtn = document.getElementById('create-first-chart-btn');
+        if(createFirstBtn) {
+            createFirstBtn.addEventListener('click', () => this.configManager.showConfigModal());
+        }
+    }
+
+    async init() {
+        await this.loadProjectsList();
+        this.toggleLoading(false);
+        this.loadDashboardData(false);
+    }
+
+    async loadProjectsList() {
+        try {
+            const response = await tokenManager.authenticatedFetch(`${this.baseUrl}/projects`);
+            const data = await response.json();
+            const select = document.getElementById('project-select');
+            select.innerHTML = '';
+            data.projects.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = p;
+                if (p === this.currentProject) opt.selected = true;
+                select.appendChild(opt);
+            });
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    async loadDashboardData(isRefresh) {
+        if (isRefresh) {
+            this.toggleLoading(true);
+        }
+        try {
+            // Await configuration metadata load, then let chart rendering run asynchronously
+            await this.loadChartConfigurations(this.currentProject);
+            this.updateDashboardState();
+        } catch (error) {
+            console.error(error);
+            this.showError(error.message);
+        } finally {
+            if (isRefresh) {
+                this.toggleLoading(false);
+            }
+        }
+    }
+
+    toggleLoading(show) {
+        const loader = document.getElementById('loading-state');
+        const content = document.getElementById('dashboard-content');
+        if (show) {
+            loader.classList.remove('hidden');
+            content.classList.add('hidden');
+        } else {
+            loader.classList.add('hidden');
+            content.classList.remove('hidden');
+        }
+    }
+
+    updateDashboardState() {
+        const welcome = document.getElementById('welcome-section');
+        const charts = document.getElementById('charts-section');
+        if (this.chartConfigs.length === 0) {
+            welcome.classList.remove('hidden');
+            charts.classList.add('hidden');
+        } else {
+            welcome.classList.add('hidden');
+            charts.classList.remove('hidden');
+        }
+    }
+}
+
+class GlobalDashboard extends BaseDashboard {
+    constructor() {
+        super();
+        this.isGlobal = true;
+        this.checkAuthentication();
+        this.bindEvents();
+        this.init();
+    }
+
+    bindEvents() {
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => this.handleLogout());
+        }
+        const retryBtn = document.getElementById('retry-btn');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => this.init());
+        }
+        const addBtn = document.getElementById('add-global-chart-btn');
+        if(addBtn) {
+            addBtn.addEventListener('click', () => this.configManager.showConfigModal());
+        }
+        const refreshBtn = document.getElementById('refresh-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.loadGlobalConfigs());
+        }
+        const projectSelect = document.getElementById('project-select');
+        if (projectSelect) {
+            projectSelect.addEventListener('change', (e) => {
+                this.currentProject = e.target.value;
+                localStorage.setItem('khs_analytics_projectId', this.currentProject);
+                this.loadGlobalConfigs();
+            });
+        }
+        const dateRange = document.getElementById('date-range');
+        if (dateRange) {
+            dateRange.addEventListener('change', () => this.loadGlobalConfigs());
+        }
+        const newChartBtn = document.getElementById('new-chart-btn');
+        if(newChartBtn) {
+            newChartBtn.addEventListener('click', () => this.configManager.showConfigModal());
+        }
+        const createFirstBtn = document.getElementById('create-first-chart-btn');
+        if(createFirstBtn) {
+            createFirstBtn.addEventListener('click', () => this.configManager.showConfigModal());
+        }
+    }
+
+    async init() {
+        const loadingState = document.getElementById('loading-state');
+        const projectsGrid = document.getElementById('projects-grid');
+        const chartsSection = document.getElementById('global-charts-section');
+        const errorState = document.getElementById('error-state');
+        loadingState.classList.remove('hidden');
+        projectsGrid.classList.add('hidden');
+        chartsSection.classList.add('hidden');
+        errorState.classList.add('hidden');
+        try {
+            await this.loadProjects();
+            loadingState.classList.add('hidden');
+            projectsGrid.classList.remove('hidden');
+            chartsSection.classList.remove('hidden');
+            this.loadGlobalConfigs();
+        } catch (error) {
+            console.error(error);
+            loadingState.classList.add('hidden');
+            errorState.classList.remove('hidden');
+            document.getElementById('error-message').textContent = error.message;
+        }
+    }
+
+    async loadGlobalConfigs() {
+        try {
+            await this.loadChartConfigurations("GLOBAL");
+        } catch (error) {
+            console.error("Failed to load global configs", error);
+        }
+    }
+
+    async loadProjects() {
+        const response = await tokenManager.authenticatedFetch(`${this.baseUrl}/projects`);
+        if (!response.ok) throw new Error('Failed to fetch projects');
+        const data = await response.json();
+        if (data.success && data.projects) {
+            this.renderProjects(data.projects);
+        } else {
+            throw new Error('No projects found');
+        }
+    }
+
+    renderProjects(projects) {
+        const grid = document.getElementById('projects-grid');
+        grid.innerHTML = '';
+        projects.forEach(project => {
+            const cleanName = this.cleanProjectName(project);
+            const safeProjectId = project.replace(/'/g, "\\'");
+            const card = document.createElement('div');
+            card.className = 'project-card';
+            const cardId = `card-${project.replace(/[^a-zA-Z0-9]/g, '')}`;
+            card.id = cardId;
+            card.innerHTML = `
+                <div class="project-card-overlay" onclick="globalDashboard.selectProject('${safeProjectId}')">
+                    <h3 class="project-title">${cleanName}</h3>
+                </div>
+                <div class="upload-btn-container">
+                    <label for="upload-${cardId}" class="upload-label-btn">Change Cover</label>
+                    <input type="file" id="upload-${cardId}" accept="image/*" style="display: none;"
+                           onchange="globalDashboard.handleImageUpload(event, '${safeProjectId}', '${cardId}')">
+                </div>
+            `;
+            grid.appendChild(card);
+            this.loadProjectImage(project, cardId);
+        });
+    }
+
+    async loadProjectImage(projectId, cardId) {
+        const card = document.getElementById(cardId);
+        if (!card) return;
+        try {
+            const encodedId = encodeURIComponent(projectId);
+            const response = await tokenManager.authenticatedFetch(`${this.baseUrl}/projects/image/${encodedId}`);
+            if (response.status === 204) return;
+            if (response.ok) {
+                const blob = await response.blob();
+                if (blob.size > 0) {
+                    const objectUrl = URL.createObjectURL(blob);
+                    card.style.backgroundImage = `url('${objectUrl}')`;
+                }
+            }
+        } catch (error) {}
+    }
+
+    async handleImageUpload(event, projectId, cardElementId) {
+        const originalFile = event.target.files[0];
+        if (!originalFile) return;
+        try {
+            const formData = new FormData();
+            formData.append('image', originalFile);
+            formData.append('projectId', projectId);
+            const response = await fetch(`${this.baseUrl}/projects/image/upload`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${tokenManager.getToken()}` },
+                body: formData
+            });
+            if (response.ok) {
+                toastManager.success("Background updated!");
+                this.loadProjectImage(projectId, cardElementId);
+            }
+        } catch (e) { toastManager.error("Error"); }
+    }
+
+    cleanProjectName(projectName) {
+        if (!projectName) return '';
+        const underscoreIndex = projectName.indexOf('_');
+        return underscoreIndex !== -1 ? projectName.substring(underscoreIndex + 1) : projectName;
+    }
+
+    selectProject(projectId) {
+        localStorage.setItem('khs_analytics_projectId', projectId);
+        window.location.href = 'project.html';
+    }
+}
+
+let propertiesDashboard;
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('project-select')) {
+        propertiesDashboard = new ProjectDashboard();
+        window.propertiesDashboard = propertiesDashboard;
+        propertiesDashboard.uiManager = {
+            updateDashboardState: () => propertiesDashboard.updateDashboardState()
+        };
+    }
+});
+
+let globalDashboard;
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('projects-grid') && !document.getElementById('project-select')) {
+        globalDashboard = new GlobalDashboard();
+        window.globalDashboard = globalDashboard;
+        globalDashboard.uiManager = {
+            updateDashboardState: () => {}
+        };
+    }
+});

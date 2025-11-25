@@ -6,9 +6,10 @@ namespace KHSWeb.Endpoints;
 
 public class EventPropertiesEndpoint : WebEndpoint
 {
+    // Keeping the original path used by Project Page
     public override string Path => "/api/events/properties";
     public override METHOD Method => METHOD.GET;
-    
+
     public override Delegate Action => async (HttpContext context) =>
     {
         try
@@ -18,49 +19,55 @@ public class EventPropertiesEndpoint : WebEndpoint
 
             if (string.IsNullOrEmpty(projectId) || string.IsNullOrEmpty(eventKey))
             {
-                return Results.Json(new ApiResponse<EventPropertiesResponse> 
-                { 
-                    Success = false, 
-                    Message = "ProjectId and EventKey are required" 
-                }, statusCode: 400);
+                return Results.Json(new ApiResponse<object> { Success = false, Message = "Missing parameters" }, statusCode: 400);
             }
-
+            
             var database = Config.GetDatabase();
             var collection = database.GetCollection<AnalyticEventDocument>(Config.MetricsCollectionName);
+            
+            // 1. Filter by Event Key
+            var filterBuilder = Builders<AnalyticEventDocument>.Filter;
+            var filter = filterBuilder.Eq(x => x.Key, eventKey);
 
-            var filter = Builders<AnalyticEventDocument>.Filter.And(
-                Builders<AnalyticEventDocument>.Filter.Eq(x => x.ProjectId, projectId),
-                Builders<AnalyticEventDocument>.Filter.Eq(x => x.Key, eventKey)
-            );
+            // 2. Filter by Project (ONLY if not GLOBAL)
+            // If GLOBAL, we skip this line, effectively searching ALL projects
+            if (projectId != "GLOBAL")
+            {
+                filter = filterBuilder.And(filter, filterBuilder.Eq(x => x.ProjectId, projectId));
+            }
 
-            // Get sample events to extract property keys
-            var sampleEvents = await collection.Find(filter)
+            // 3. Scan recent events to find Property Keys
+            // We limit to 50 to keep it fast. 
+            // This works for both single projects and global views.
+            var recentEvents = await collection.Find(filter)
+                .SortByDescending(x => x.Timestamp)
                 .Limit(50)
                 .ToListAsync();
 
             var propertyKeys = new HashSet<string>();
-            foreach (var eventDoc in sampleEvents)
+
+            foreach (var evt in recentEvents)
             {
-                foreach (var key in eventDoc.PropertiesDict.Keys)
+                if (evt.PropertiesDict != null)
                 {
-                    propertyKeys.Add(key);
+                    foreach (var key in evt.PropertiesDict.Keys)
+                    {
+                        propertyKeys.Add(key);
+                    }
                 }
             }
+            
+            var sortedKeys = propertyKeys.OrderBy(x => x).ToList();
 
-            return Results.Json(new ApiResponse<EventPropertiesResponse>
+            return Results.Json(new ApiResponse<object>
             {
                 Success = true,
-                Data = new EventPropertiesResponse { PropertyKeys = propertyKeys.OrderBy(k => k).ToList() }
+                Data = new { propertyKeys = sortedKeys }
             });
         }
         catch (Exception ex)
         {
-            DebugUtils.PrintError($"Error getting event properties: {ex.Message}");
-            return Results.Json(new ApiResponse<EventPropertiesResponse>
-            {
-                Success = false,
-                Message = $"Error getting event properties: {ex.Message}"
-            }, statusCode: 500);
+            return Results.Json(new ApiResponse<object> { Success = false, Message = ex.Message }, statusCode: 500);
         }
     };
 }

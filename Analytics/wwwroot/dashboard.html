@@ -3,11 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Selection - KnuckleHUB</title>
+    <title>Dashboard - KnuckleHUB</title>
     <link rel="stylesheet" href="css/global.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/projects-hub.css">
+    <link rel="stylesheet" href="css/chart-widgets.css">
+    <link rel="stylesheet" href="css/properties-dashboard.css">
+
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .global-charts-section {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto 40px auto;
+            padding: 0 20px;
+        }
+        .global-charts-header {
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .global-charts-header h2 {
+            font-family: 'Orbitron', sans-serif;
+            color: rgb(218, 135, 39);
+            margin: 0;
+        }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+    </style>
 </head>
 <body>
 <canvas id="background-canvas"></canvas>
@@ -29,11 +59,12 @@
 
 <main class="dashboard-container">
     <div class="hub-header">
+        <h2>Your Projects</h2>
     </div>
 
     <div id="loading-state" class="loading-state">
         <div class="loading-spinner"></div>
-        <p>Loading available projects...</p>
+        <p>Loading projects and analytics...</p>
     </div>
 
     <div id="projects-grid" class="projects-grid hidden">
@@ -44,11 +75,99 @@
         <p id="error-message">Failed to load projects.</p>
         <button id="retry-btn" class="control-btn">Try Again</button>
     </div>
+
+    <div id="global-charts-section" class="global-charts-section hidden">
+        <div class="global-charts-header">
+            <h2>Global Comparisons</h2>
+            <button id="add-global-chart-btn" class="control-btn">
+                <span class="btn-icon">➕</span> Add Comparison
+            </button>
+        </div>
+        <div id="global-charts-grid" class="charts-grid">
+        </div>
+    </div>
 </main>
+
+<div id="config-modal" class="modal hidden">
+    <div class="modal-content large" style="width: 1200px; max-width: 95vw;">
+        <div class="modal-header">
+            <h3>Add Comparison Chart</h3>
+            <button class="modal-close" id="config-modal-close">&times;</button>
+        </div>
+
+        <div class="modal-body modal-body-split">
+
+            <form id="chart-config-form" class="modal-box">
+                <h4 style="margin-top: 0; margin-bottom: 15px; color: rgb(218, 135, 39);">Basic Settings</h4>
+                <div class="form-group">
+                    <label for="config-display-name">Chart Name *</label>
+                    <input type="text" id="config-display-name" required
+                           placeholder="Enter a descriptive name">
+                </div>
+
+                <div class="form-group">
+                    <label for="config-event-key">Event Key *</label>
+                    <select id="config-event-key" required>
+                        <option value="">Loading keys...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="config-property">Property (Optional)</label>
+                    <select id="config-property">
+                        <option value="">Event Count (default)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="config-chart-type">Chart Type *</label>
+                    <select id="config-chart-type" required>
+                        <option value="BarChart">Bar Chart</option>
+                        <option value="PieChart">Pie Chart</option>
+                        <option value="LineChart">Line Chart</option>
+                        <option value="NumberCard">Number Card</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="control-btn secondary" id="config-cancel-btn">Cancel</button>
+                    <button type="submit" class="control-btn" id="config-save-btn">Save Chart</button>
+                </div>
+            </form>
+
+            <div id="filter-config-column" class="modal-box" style="display: flex; flex-direction: column;">
+                <h4 style="margin-top: 0; margin-bottom: 15px; color: rgb(218, 135, 39);">Conditions</h4>
+
+                <div id="filter-rows-container" style="flex: 1; overflow-y: auto; margin-bottom: 10px; padding-right: 5px;">
+                </div>
+
+                <button type="button" id="add-filter-btn" class="control-btn secondary" style="width: 100%; padding: 8px;">
+                    <span class="btn-icon">➕</span> Add Condition
+                </button>
+
+                <input type="hidden" id="config-filters-json">
+            </div>
+
+            <div id="config-preview-column" class="modal-box">
+                <h4 style="margin-top: 0; margin-bottom: 15px; color: rgb(218, 135, 39);">Live Preview</h4>
+                <div id="preview-chart-container">
+                    <canvas id="preview-chart-canvas"></canvas>
+                </div>
+                <div id="preview-info" style="color: #aaa; font-size: 12px; margin-top: 10px; text-align: center;">
+                    Select an Event Key and Chart Type to see a preview.
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
 
 <script src="js/ToastManager.js"></script>
 <script src="js/TokenManager.js"></script>
 <script src="js/Particles.js"></script>
-<script src="js/ProjectsHub.js"></script>
+<script src="js/ChartManager.js"></script>
+<script src="js/DragDropManager.js"></script>
+<script src="js/ConfigManager.js"></script>
+<script src="js/Dashboard.js"></script>
 </body>
-</html>d
+</html>
