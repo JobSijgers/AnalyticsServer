@@ -79,9 +79,21 @@
     <div id="global-charts-section" class="global-charts-section hidden">
         <div class="global-charts-header">
             <h2>Global Comparisons</h2>
-            <button id="add-global-chart-btn" class="control-btn">
-                <span class="btn-icon">➕</span> Add Comparison
-            </button>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div class="control-group">
+                    <label for="date-range"></label>
+                    <select id="date-range" class="control-select">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="365">Last year</option>
+                        <option value="36500">All Time</option>
+                    </select>
+                </div>
+                <button id="add-global-chart-btn" class="control-btn">
+                    <span class="btn-icon">➕</span> Add Comparison
+                </button>
+            </div>
         </div>
         <div id="global-charts-grid" class="charts-grid">
         </div>

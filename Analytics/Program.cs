@@ -9,7 +9,7 @@ namespace KHS
 
         static void Main(string[] args)
         {
-            DebugUtils.SetPrintLevel(DebugUtils.PRINT_LEVEL.ERRORS);
+            DebugUtils.SetPrintLevel(DebugUtils.PRINT_LEVEL.ALL);
             DebugUtils.SetPrintCollections(true);
 
             var webServer = new WebServer();

@@ -5,18 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="1a9925c0-3b97-4d78-b9aa-db5368dc6363" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/WebServer/Endpoints/CustomChartDataEndpoint.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/Endpoints/CustomChartDataEndpoint.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/Endpoints/EventKeysEndpoint.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/Endpoints/EventKeysEndpoint.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/Endpoints/EventPropertiesEndpoint.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/Endpoints/EventPropertiesEndpoint.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/Endpoints/GlobalChartDataEndpoint.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/wwwroot/CSS/properties-dashboard.css" beforeDir="false" afterPath="$PROJECT_DIR$/wwwroot/CSS/properties-dashboard.css" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/wwwroot/JS/ChartManager.js" beforeDir="false" afterPath="$PROJECT_DIR$/wwwroot/JS/ChartManager.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wwwroot/JS/ConfigManager.js" beforeDir="false" afterPath="$PROJECT_DIR$/wwwroot/JS/ConfigManager.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wwwroot/JS/ProjectsHub.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/wwwroot/JS/PropertiesDashboard.js" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/wwwroot/dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/wwwroot/dashboard.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wwwroot/project.html" beforeDir="false" afterPath="$PROJECT_DIR$/wwwroot/project.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -66,6 +57,7 @@
       <workItem from="1764072123929" duration="653000" />
       <workItem from="1764075275257" duration="607000" />
       <workItem from="1764076397197" duration="68000" />
+      <workItem from="1764076497287" duration="615000" />
     </task>
     <servers />
   </component>

@@ -1,15 +1,17 @@
 ﻿using KHSWeb.Models;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using Utils;
 using System.Text.Json;
-using MongoDB.Bson; 
+using MongoDB.Bson;
+using System.Collections.Concurrent;
 
 namespace KHSWeb.Endpoints;
 
 public class FilterCondition
 {
     public string Property { get; set; }
-    public string Operator { get; set; } 
+    public string Operator { get; set; }
     public object Value { get; set; }
 }
 
@@ -24,10 +26,10 @@ public class CustomChartDataEndpoint : WebEndpoint
         {
             var projectId = context.Request.Query["projectId"].ToString();
             var eventKey = context.Request.Query["eventKey"].ToString();
-            var propertyName = context.Request.Query["propertyName"].ToString(); 
+            var propertyName = context.Request.Query["propertyName"].ToString();
             var chartType = context.Request.Query["chartType"].ToString();
             var days = int.TryParse(context.Request.Query["days"], out int d) ? d : 30;
-            var filtersJson = context.Request.Query["filtersJson"].ToString(); 
+            var filtersJson = context.Request.Query["filtersJson"].ToString();
 
             if (string.IsNullOrEmpty(projectId) || string.IsNullOrEmpty(eventKey))
             {
@@ -36,58 +38,9 @@ public class CustomChartDataEndpoint : WebEndpoint
 
             var database = Config.GetDatabase();
             var collection = database.GetCollection<AnalyticEventDocument>(Config.MetricsCollectionName);
-            var startDate = DateTime.UtcNow.AddDays(-days);
-            var filterBuilder = Builders<AnalyticEventDocument>.Filter;
-            var filters = new List<FilterDefinition<AnalyticEventDocument>>();
-
-            filters.Add(filterBuilder.Eq(x => x.Key, eventKey));
-            filters.Add(filterBuilder.Gte(x => x.Timestamp, startDate));
-
-            if (projectId != "GLOBAL")
-            {
-                filters.Add(filterBuilder.Eq(x => x.ProjectId, projectId));
-            }
-
-            if (!string.IsNullOrEmpty(filtersJson))
-            {
-                try 
-                {
-                    var conditions = JsonSerializer.Deserialize<List<FilterCondition>>(filtersJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    if (conditions != null)
-                    {
-                        foreach (var cond in conditions)
-                        {
-                            var dynamicFilter = BuildDynamicFilter(filterBuilder, cond);
-                            if (dynamicFilter != null) filters.Add(dynamicFilter);
-                        }
-                    }
-                }
-                catch (Exception ex) { DebugUtils.PrintError($"Filter parse error: {ex.Message}"); }
-            }
-
-            var finalFilter = filterBuilder.And(filters);
-            var events = await collection.Find(finalFilter).SortBy(x => x.Timestamp).ToListAsync();
-
-            // Special Case: Global Bar Chart (Project Counts Summary)
-            if (projectId == "GLOBAL" && chartType == "BarChart" && string.IsNullOrEmpty(propertyName))
-            {
-                var projectGroups = events
-                    .GroupBy(e => e.ProjectId)
-                    .Select(g => new { Label = CleanProjectName(g.Key), Value = g.Count() })
-                    .OrderByDescending(x => x.Value)
-                    .ToList();
-
-                return Results.Json(new ApiResponse<ChartDataResponse>
-                {
-                    Success = true,
-                    Data = new ChartDataResponse 
-                    { 
-                        ChartData = new { type = "bar", data = projectGroups.Select(x => new { label = x.Label, value = x.Value }) }
-                    }
-                });
-            }
-
-            var chartData = ProcessChartData(events, propertyName, chartType, days, projectId);
+            
+            // Use MongoDB aggregation for better performance
+            var chartData = await ProcessChartDataWithAggregation(collection, projectId, eventKey, propertyName, chartType, days, filtersJson);
 
             return Results.Json(new ApiResponse<ChartDataResponse>
             {
@@ -100,6 +53,696 @@ public class CustomChartDataEndpoint : WebEndpoint
             return Results.Json(new ApiResponse<ChartDataResponse> { Success = false, Message = ex.Message }, statusCode: 500);
         }
     };
+
+    private async Task<object> ProcessChartDataWithAggregation(
+        IMongoCollection<AnalyticEventDocument> collection,
+        string projectId,
+        string eventKey,
+        string propertyName,
+        string chartType,
+        int days,
+        string filtersJson)
+    {
+        var startDate = DateTime.UtcNow.AddDays(-days);
+        var isEmptyProperty = string.IsNullOrEmpty(propertyName);
+        var typeLower = chartType?.ToLower() ?? "linechart";
+
+        // Build base filter
+        var filterBuilder = Builders<AnalyticEventDocument>.Filter;
+        var filters = new List<FilterDefinition<AnalyticEventDocument>>
+        {
+            filterBuilder.Eq(x => x.Key, eventKey),
+            filterBuilder.Gte(x => x.Timestamp, startDate)
+        };
+
+        if (projectId != "GLOBAL")
+        {
+            filters.Add(filterBuilder.Eq(x => x.ProjectId, projectId));
+        }
+
+        // Handle additional filters
+        if (!string.IsNullOrEmpty(filtersJson))
+        {
+            try
+            {
+                var conditions = JsonSerializer.Deserialize<List<FilterCondition>>(filtersJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (conditions != null)
+                {
+                    foreach (var cond in conditions)
+                    {
+                        var dynamicFilter = BuildDynamicFilter(filterBuilder, cond);
+                        if (dynamicFilter != null) filters.Add(dynamicFilter);
+                    }
+                }
+            }
+            catch (Exception ex) { DebugUtils.PrintError($"Filter parse error: {ex.Message}"); }
+        }
+
+        var finalFilter = filterBuilder.And(filters);
+
+        // Special case for GLOBAL BarChart without property
+        if (projectId == "GLOBAL" && chartType == "BarChart" && string.IsNullOrEmpty(propertyName))
+        {
+            var aggregation = await collection.Aggregate()
+                .Match(finalFilter)
+                .Group(new BsonDocument
+                {
+                    { "_id", "$ProjectId" },
+                    { "count", new BsonDocument("$sum", 1) }
+                })
+                .Sort(new BsonDocument("count", -1))
+                .Project(new BsonDocument
+                {
+                    { "label", new BsonDocument("$concat", new BsonArray 
+                        { 
+                            new BsonDocument("$cond", new BsonDocument
+                            {
+                                { "if", new BsonDocument("$eq", new BsonArray { new BsonDocument("$indexOfCP", new BsonArray { "$_id", "_" }), -1 }) },
+                                { "then", "$_id" },
+                                { "else", new BsonDocument("$substr", new BsonArray { "$_id", new BsonDocument("$add", new BsonArray { new BsonDocument("$indexOfCP", new BsonArray { "$_id", "_" }), 1 }), new BsonDocument("$strLenCP", "$_id") }) }
+                            })
+                        })
+                    },
+                    { "value", "$count" }
+                })
+                .ToListAsync();
+
+            return new { type = "bar", data = aggregation.Select(x => new { label = x["label"].AsString, value = x["count"].AsInt32 }) };
+        }
+
+        // Use aggregation pipelines instead of fetching all documents
+        switch (typeLower)
+        {
+            case "linechart":
+                return await ProcessLineChartAggregation(collection, finalFilter, propertyName, days, projectId, isEmptyProperty);
+            
+            case "stackedbarchart":
+                if (projectId == "GLOBAL")
+                    return await ProcessLineChartAggregation(collection, finalFilter, propertyName, days, projectId, isEmptyProperty);
+                else
+                    return await ProcessBarChartAggregation(collection, finalFilter, propertyName, projectId, isEmptyProperty);
+            
+            case "barchart":
+                return await ProcessBarChartAggregation(collection, finalFilter, propertyName, projectId, isEmptyProperty);
+            
+            case "piechart":
+                return await ProcessPieChartAggregation(collection, finalFilter, propertyName, projectId, isEmptyProperty);
+            
+            case "numbercard":
+                return await ProcessNumberCardAggregation(collection, finalFilter, propertyName, isEmptyProperty);
+            
+            default:
+                return await ProcessLineChartAggregation(collection, finalFilter, propertyName, days, projectId, isEmptyProperty);
+        }
+    }
+
+    private async Task<object> ProcessLineChartAggregation(
+        IMongoCollection<AnalyticEventDocument> collection,
+        FilterDefinition<AnalyticEventDocument> filter,
+        string propertyName,
+        int days,
+        string projectId,
+        bool isEmptyProperty)
+    {
+        if (projectId == "GLOBAL")
+        {
+            if (!isEmptyProperty)
+            {
+                return await ProcessGlobalModeWithPropertyAggregation(collection, filter, propertyName, days);
+            }
+            else
+            {
+                return await ProcessGlobalModeWithoutPropertyAggregation(collection, filter, days);
+            }
+        }
+
+        if (!isEmptyProperty)
+        {
+            // Check if property is numeric using a sample
+            var sample = await collection.Find(filter)
+                .Project<BsonDocument>(Builders<AnalyticEventDocument>.Projection.Include("Properties." + propertyName))
+                .Limit(100)
+                .ToListAsync();
+
+            bool isIntegerProperty = IsIntegerPropertySample(sample, propertyName);
+            
+            if (isIntegerProperty)
+            {
+                return await ProcessIntegerPropertySumAggregation(collection, filter, propertyName, days);
+            }
+            else
+            {
+                return await ProcessCategoricalPropertyLinesAggregation(collection, filter, propertyName, days);
+            }
+        }
+
+        // Simple daily count aggregation
+        var aggregation = await collection.Aggregate()
+            .Match(filter)
+            .Group(new BsonDocument
+            {
+                { "_id", new BsonDocument("$dateToString", new BsonDocument("format", "%Y-%m-%d").Add("date", "$Timestamp")) },
+                { "count", new BsonDocument("$sum", 1) }
+            })
+            .Sort("_id")
+            .ToListAsync();
+
+        var result = new List<object>();
+        var allDates = GenerateDateRange(days);
+
+        foreach (var date in allDates)
+        {
+            var countDoc = aggregation.FirstOrDefault(a => a["_id"].AsString == date.standard);
+            result.Add(new { date = date.display, value = countDoc?.GetValue("count", 0).AsInt32 ?? 0 });
+        }
+
+        return new { type = "line", data = result };
+    }
+
+    private async Task<object> ProcessGlobalModeWithPropertyAggregation(
+        IMongoCollection<AnalyticEventDocument> collection,
+        FilterDefinition<AnalyticEventDocument> filter,
+        string propertyName,
+        int days)
+    {
+        // Enhanced aggregation that handles arrays properly
+        var aggregation = await collection.Aggregate()
+            .Match(filter)
+            .Project(new BsonDocument
+            {
+                { "ProjectId", 1 },
+                { "Timestamp", 1 },
+                { "PropertyValue", new BsonDocument("$ifNull", new BsonArray { "$Properties." + propertyName, "Unknown" }) }
+            })
+            .Project(new BsonDocument
+            {
+                { "ProjectId", 1 },
+                { "Timestamp", 1 },
+                { "Values", new BsonDocument("$cond", new BsonDocument
+                    {
+                        { "if", new BsonDocument("$isArray", "$PropertyValue") },
+                        { "then", "$PropertyValue" },
+                        { "else", new BsonDocument("$cond", new BsonDocument
+                            {
+                                { "if", new BsonDocument("$regexMatch", new BsonDocument
+                                    {
+                                        { "input", "$PropertyValue" },
+                                        { "regex", new BsonRegularExpression("^\\s*\\[.*\\]\\s*$") }
+                                    })
+                                },
+                                { "then", new BsonDocument("$split", 
+                                    new BsonArray { 
+                                        new BsonDocument("$trim", new BsonDocument("input", 
+                                            new BsonDocument("$substr", new BsonArray { "$PropertyValue", 1, 
+                                                new BsonDocument("$subtract", new BsonArray { 
+                                                    new BsonDocument("$strLenCP", "$PropertyValue"), 2 
+                                                })
+                                            })
+                                        )),
+                                        ","
+                                    })
+                                },
+                                { "else", new BsonArray { "$PropertyValue" } }
+                            })
+                        }
+                    })
+                }
+            })
+            .Unwind("Values")
+            .Project(new BsonDocument
+            {
+                { "ProjectId", 1 },
+                { "Timestamp", 1 },
+                { "PropertyValue", new BsonDocument("$trim", new BsonDocument("input", "$Values")) }
+            })
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$ne", "")))
+            .Group(new BsonDocument
+            {
+                { "_id", new BsonDocument
+                    {
+                        { "date", new BsonDocument("$dateToString", new BsonDocument("format", "%Y-%m-%d").Add("date", "$Timestamp")) },
+                        { "propertyValue", "$PropertyValue" }
+                    }
+                },
+                { "count", new BsonDocument("$sum", 1) }
+            })
+            .Group(new BsonDocument
+            {
+                { "_id", "$_id.propertyValue" },
+                { "dailyCounts", new BsonDocument("$push", new BsonDocument
+                    {
+                        { "date", "$_id.date" },
+                        { "count", "$count" }
+                    })
+                },
+                { "totalCount", new BsonDocument("$sum", "$count") }
+            })
+            .Sort(new BsonDocument("totalCount", -1))
+            .Limit(15)
+            .ToListAsync();
+
+        var multiLineData = new List<object>();
+        var allDates = GenerateDateRange(days);
+
+        foreach (var doc in aggregation)
+        {
+            var propertyValue = doc["_id"].AsString;
+            var dailyCounts = doc["dailyCounts"].AsBsonArray.ToDictionary(
+                x => x["date"].AsString,
+                x => x["count"].AsInt32
+            );
+
+            var points = allDates.Select(date => new 
+            { 
+                date = date.display, 
+                count = dailyCounts.ContainsKey(date.standard) ? dailyCounts[date.standard] : 0 
+            }).ToList<object>();
+
+            multiLineData.Add(new { label = propertyValue, data = points });
+        }
+
+        return new { type = "multiLine", data = multiLineData };
+    }
+
+    private async Task<object> ProcessGlobalModeWithoutPropertyAggregation(
+        IMongoCollection<AnalyticEventDocument> collection,
+        FilterDefinition<AnalyticEventDocument> filter,
+        int days)
+    {
+        var aggregation = await collection.Aggregate()
+            .Match(filter)
+            .Group(new BsonDocument
+            {
+                { "_id", new BsonDocument
+                    {
+                        { "date", new BsonDocument("$dateToString", new BsonDocument("format", "%Y-%m-%d").Add("date", "$Timestamp")) },
+                        { "projectId", "$ProjectId" }
+                    }
+                },
+                { "count", new BsonDocument("$sum", 1) }
+            })
+            .Group(new BsonDocument
+            {
+                { "_id", "$_id.projectId" },
+                { "dailyCounts", new BsonDocument("$push", new BsonDocument
+                    {
+                        { "date", "$_id.date" },
+                        { "count", "$count" }
+                    })
+                },
+                { "totalCount", new BsonDocument("$sum", "$count") }
+            })
+            .Sort(new BsonDocument("totalCount", -1))
+            .Limit(15)
+            .ToListAsync();
+
+        var multiLineData = new List<object>();
+        var allDates = GenerateDateRange(days);
+
+        foreach (var doc in aggregation)
+        {
+            var projectId = doc["_id"].AsString;
+            var dailyCounts = doc["dailyCounts"].AsBsonArray.ToDictionary(
+                x => x["date"].AsString,
+                x => x["count"].AsInt32
+            );
+
+            var points = allDates.Select(date => new 
+            { 
+                date = date.display, 
+                count = dailyCounts.ContainsKey(date.standard) ? dailyCounts[date.standard] : 0 
+            }).ToList<object>();
+
+            multiLineData.Add(new { label = CleanProjectName(projectId), data = points });
+        }
+
+        return new { type = "multiLine", data = multiLineData };
+    }
+
+    private async Task<object> ProcessIntegerPropertySumAggregation(
+        IMongoCollection<AnalyticEventDocument> collection,
+        FilterDefinition<AnalyticEventDocument> filter,
+        string propertyName,
+        int days)
+    {
+        var aggregation = await collection.Aggregate()
+            .Match(filter)
+            .Project(new BsonDocument
+            {
+                { "Timestamp", 1 },
+                { "PropertyValue", new BsonDocument("$ifNull", new BsonArray { "$Properties." + propertyName, "0" }) }
+            })
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$regex", new BsonRegularExpression("^\\d+$"))))
+            .Group(new BsonDocument
+            {
+                { "_id", new BsonDocument("$dateToString", new BsonDocument("format", "%Y-%m-%d").Add("date", "$Timestamp")) },
+                { "sum", new BsonDocument("$sum", new BsonDocument("$toInt", "$PropertyValue")) }
+            })
+            .Sort("_id")
+            .ToListAsync();
+
+        var result = new List<object>();
+        var allDates = GenerateDateRange(days);
+
+        foreach (var date in allDates)
+        {
+            var sumDoc = aggregation.FirstOrDefault(a => a["_id"].AsString == date.standard);
+            result.Add(new { date = date.display, value = sumDoc?.GetValue("sum", 0).AsInt32 ?? 0 });
+        }
+
+        return new { type = "line", data = result };
+    }
+
+    private async Task<object> ProcessCategoricalPropertyLinesAggregation(
+        IMongoCollection<AnalyticEventDocument> collection,
+        FilterDefinition<AnalyticEventDocument> filter,
+        string propertyName,
+        int days)
+    {
+        // Enhanced aggregation that handles arrays properly
+        var aggregation = await collection.Aggregate()
+            .Match(filter)
+            .Project(new BsonDocument
+            {
+                { "Timestamp", 1 },
+                { "PropertyValue", new BsonDocument("$ifNull", new BsonArray { "$Properties." + propertyName, "Unknown" }) }
+            })
+            .Project(new BsonDocument
+            {
+                { "Timestamp", 1 },
+                { "Values", new BsonDocument("$cond", new BsonDocument
+                    {
+                        { "if", new BsonDocument("$isArray", "$PropertyValue") },
+                        { "then", "$PropertyValue" },
+                        { "else", new BsonDocument("$cond", new BsonDocument
+                            {
+                                { "if", new BsonDocument("$regexMatch", new BsonDocument
+                                    {
+                                        { "input", "$PropertyValue" },
+                                        { "regex", new BsonRegularExpression("^\\s*\\[.*\\]\\s*$") }
+                                    })
+                                },
+                                { "then", new BsonDocument("$split", 
+                                    new BsonArray { 
+                                        new BsonDocument("$trim", new BsonDocument("input", 
+                                            new BsonDocument("$substr", new BsonArray { "$PropertyValue", 1, 
+                                                new BsonDocument("$subtract", new BsonArray { 
+                                                    new BsonDocument("$strLenCP", "$PropertyValue"), 2 
+                                                })
+                                            })
+                                        )),
+                                        ","
+                                    })
+                                },
+                                { "else", new BsonArray { "$PropertyValue" } }
+                            })
+                        }
+                    })
+                }
+            })
+            .Unwind("Values")
+            .Project(new BsonDocument
+            {
+                { "Timestamp", 1 },
+                { "PropertyValue", new BsonDocument("$trim", new BsonDocument("input", "$Values")) }
+            })
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$ne", "")))
+            .Group(new BsonDocument
+            {
+                { "_id", new BsonDocument
+                    {
+                        { "date", new BsonDocument("$dateToString", new BsonDocument("format", "%Y-%m-%d").Add("date", "$Timestamp")) },
+                        { "propertyValue", "$PropertyValue" }
+                    }
+                },
+                { "count", new BsonDocument("$sum", 1) }
+            })
+            .Group(new BsonDocument
+            {
+                { "_id", "$_id.propertyValue" },
+                { "dailyCounts", new BsonDocument("$push", new BsonDocument
+                    {
+                        { "date", "$_id.date" },
+                        { "count", "$count" }
+                    })
+                },
+                { "totalCount", new BsonDocument("$sum", "$count") }
+            })
+            .Sort(new BsonDocument("totalCount", -1))
+            .Limit(20)
+            .ToListAsync();
+
+        var multiLineData = new List<object>();
+        var allDates = GenerateDateRange(days);
+
+        foreach (var doc in aggregation)
+        {
+            var propertyValue = doc["_id"].AsString;
+            var dailyCounts = doc["dailyCounts"].AsBsonArray.ToDictionary(
+                x => x["date"].AsString,
+                x => x["count"].AsInt32
+            );
+
+            var points = allDates.Select(date => new 
+            { 
+                date = date.display, 
+                count = dailyCounts.ContainsKey(date.standard) ? dailyCounts[date.standard] : 0 
+            }).ToList<object>();
+
+            multiLineData.Add(new { label = propertyValue, data = points });
+        }
+
+        return new { type = "multiLine", data = multiLineData };
+    }
+
+    private async Task<object> ProcessBarChartAggregation(
+        IMongoCollection<AnalyticEventDocument> collection,
+        FilterDefinition<AnalyticEventDocument> filter,
+        string propertyName,
+        string projectId,
+        bool isEmptyProperty)
+    {
+        if (isEmptyProperty)
+        {
+            var aggregation = await collection.Aggregate()
+                .Match(filter)
+                .Group(new BsonDocument
+                {
+                    { "_id", new BsonDocument("$dateToString", new BsonDocument("format", "%Y-%m-%d").Add("date", "$Timestamp")) },
+                    { "count", new BsonDocument("$sum", 1) }
+                })
+                .Sort("_id")
+                .Limit(100)
+                .ToListAsync();
+
+            var data = aggregation.Select(doc => new 
+            { 
+                label = DateTime.Parse(doc["_id"].AsString).ToString("MMM dd"), 
+                value = doc["count"].AsInt32 
+            }).ToList<object>();
+
+            return new { type = "bar", data = data };
+        }
+
+        return await ProcessDistributionAggregation(collection, filter, propertyName, "bar", projectId);
+    }
+
+    private async Task<object> ProcessPieChartAggregation(
+        IMongoCollection<AnalyticEventDocument> collection,
+        FilterDefinition<AnalyticEventDocument> filter,
+        string propertyName,
+        string projectId,
+        bool isEmptyProperty)
+    {
+        if (isEmptyProperty)
+        {
+            var count = await collection.CountDocumentsAsync(filter);
+            return new { type = "pie", data = new[] { new { label = "Total Events", value = count } } };
+        }
+
+        return await ProcessDistributionAggregation(collection, filter, propertyName, "pie", projectId);
+    }
+
+    private async Task<object> ProcessDistributionAggregation(
+        IMongoCollection<AnalyticEventDocument> collection,
+        FilterDefinition<AnalyticEventDocument> filter,
+        string propertyName,
+        string type,
+        string projectId)
+    {
+        // Enhanced aggregation that properly handles arrays
+        var aggregation = await collection.Aggregate()
+            .Match(filter)
+            .Project(new BsonDocument
+            {
+                { "ProjectId", 1 },
+                { "PropertyValue", new BsonDocument("$ifNull", new BsonArray { "$Properties." + propertyName, "Unknown" }) }
+            })
+            .Project(new BsonDocument
+            {
+                { "ProjectId", 1 },
+                { "Values", new BsonDocument("$cond", new BsonDocument
+                    {
+                        { "if", new BsonDocument("$isArray", "$PropertyValue") },
+                        { "then", "$PropertyValue" },
+                        { "else", new BsonDocument("$cond", new BsonDocument
+                            {
+                                { "if", new BsonDocument("$regexMatch", new BsonDocument
+                                    {
+                                        { "input", "$PropertyValue" },
+                                        { "regex", new BsonRegularExpression("^\\s*\\[.*\\]\\s*$") }
+                                    })
+                                },
+                                { "then", new BsonDocument("$split", 
+                                    new BsonArray { 
+                                        new BsonDocument("$trim", new BsonDocument("input", 
+                                            new BsonDocument("$substr", new BsonArray { "$PropertyValue", 1, 
+                                                new BsonDocument("$subtract", new BsonArray { 
+                                                    new BsonDocument("$strLenCP", "$PropertyValue"), 2 
+                                                })
+                                            })
+                                        )),
+                                        ","
+                                    })
+                                },
+                                { "else", new BsonArray { "$PropertyValue" } }
+                            })
+                        }
+                    })
+                }
+            })
+            .Unwind("Values")
+            .Project(new BsonDocument
+            {
+                { "ProjectId", 1 },
+                { "Value", new BsonDocument("$trim", new BsonDocument("input", "$Values")) }
+            })
+            .Match(new BsonDocument("Value", new BsonDocument("$ne", "")))
+            .Group(new BsonDocument
+            {
+                { "_id", "$Value" },
+                { "count", new BsonDocument("$sum", 1) },
+                { "projects", new BsonDocument("$addToSet", "$ProjectId") }
+            })
+            .Project(new BsonDocument
+            {
+                { "label", "$_id" },
+                { "value", "$count" },
+                { "projectCount", new BsonDocument("$size", "$projects") }
+            })
+            .Match(projectId == "GLOBAL" ? 
+                new BsonDocument("projectCount", new BsonDocument("$gte", 2)) : 
+                new BsonDocument())
+            .Sort(new BsonDocument("value", -1))
+            .Limit(100)
+            .ToListAsync();
+
+        var distribution = aggregation.Select(doc => new 
+        { 
+            label = doc["label"].AsString, 
+            value = doc["value"].AsInt32 
+        }).ToList();
+
+        if (type == "line")
+        {
+            var lineData = distribution.Select(d => new { label = d.label, value = d.value }).ToList<object>();
+            return new { type = "line", data = lineData };
+        }
+
+        return new { type = type, data = distribution };
+    }
+
+    private async Task<object> ProcessNumberCardAggregation(
+        IMongoCollection<AnalyticEventDocument> collection,
+        FilterDefinition<AnalyticEventDocument> filter,
+        string propertyName,
+        bool isEmptyProperty)
+    {
+        if (isEmptyProperty)
+        {
+            var count = await collection.CountDocumentsAsync(filter);
+            return new { type = "number", data = new { total = count, sumValue = 0.0, avgValue = 0.0 } };
+        }
+
+        var aggregation = await collection.Aggregate()
+            .Match(filter)
+            .Project(new BsonDocument
+            {
+                { "PropertyValue", new BsonDocument("$ifNull", new BsonArray { "$Properties." + propertyName, "0" }) }
+            })
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$regex", new BsonRegularExpression("^-?\\d+(\\.\\d+)?$"))))
+            .Group(new BsonDocument
+            {
+                { "_id", BsonNull.Value },
+                { "total", new BsonDocument("$sum", 1) },
+                { "sumValue", new BsonDocument("$sum", new BsonDocument("$toDouble", "$PropertyValue")) },
+                { "avgValue", new BsonDocument("$avg", new BsonDocument("$toDouble", "$PropertyValue")) }
+            })
+            .FirstOrDefaultAsync();
+
+        if (aggregation == null)
+        {
+            return new { type = "number", data = new { total = 0, sumValue = 0.0, avgValue = 0.0 } };
+        }
+
+        return new { type = "number", data = new 
+        { 
+            total = aggregation.GetValue("total", 0).AsInt32, 
+            sumValue = aggregation.GetValue("sumValue", 0.0).AsDouble, 
+            avgValue = aggregation.GetValue("avgValue", 0.0).AsDouble 
+        } };
+    }
+
+    // Helper methods
+    private List<(string standard, string display)> GenerateDateRange(int days)
+    {
+        var dates = new List<(string, string)>();
+        for (var i = 0; i < days; i++)
+        {
+            var date = DateTime.UtcNow.Date.AddDays(-days + i + 1);
+            dates.Add((date.ToString("yyyy-MM-dd"), date.ToString("MMM dd")));
+        }
+        return dates;
+    }
+
+    private bool IsIntegerPropertySample(List<BsonDocument> sample, string propertyName)
+    {
+        if (sample.Count == 0) return false;
+
+        var fieldPath = "Properties." + propertyName;
+        int integerCount = 0;
+
+        foreach (var doc in sample)
+        {
+            if (doc.Contains(fieldPath))
+            {
+                var value = doc[fieldPath];
+                if (value.IsString && int.TryParse(value.AsString, out _))
+                {
+                    integerCount++;
+                }
+                else if (value.IsInt32 || value.IsInt64)
+                {
+                    integerCount++;
+                }
+                else if (value.IsBsonArray)
+                {
+                    // For arrays, check first element if exists
+                    var array = value.AsBsonArray;
+                    if (array.Count > 0 && array[0].IsString && int.TryParse(array[0].AsString, out _))
+                    {
+                        integerCount++;
+                    }
+                    else if (array.Count > 0 && (array[0].IsInt32 || array[0].IsInt64))
+                    {
+                        integerCount++;
+                    }
+                }
+            }
+        }
+
+        return (integerCount * 1.0 / sample.Count) > 0.8;
+    }
 
     private string CleanProjectName(string projectId)
     {
@@ -150,163 +793,5 @@ public class CustomChartDataEndpoint : WebEndpoint
             "<=" => builder.Lte(fieldName, val),
             _ => null
         };
-    }
-
-    private object ProcessChartData(List<AnalyticEventDocument> events, string propertyName, string chartType, int days, string projectId)
-    {
-        var isEmptyProperty = string.IsNullOrEmpty(propertyName);
-        var typeLower = chartType?.ToLower() ?? "linechart";
-
-        switch (typeLower)
-        {
-            case "linechart":
-                return ProcessLineChart(events, propertyName, days, isEmptyProperty, projectId);
-
-            case "stackedbarchart":
-                // GLOBAL: Stacked Bar follows time-series logic (MultiLine)
-                // SINGLE: Stacked Bar follows distribution logic (Standard Bar)
-                if (projectId == "GLOBAL")
-                    return ProcessLineChart(events, propertyName, days, isEmptyProperty, projectId);
-                else
-                    return ProcessBarChart(events, propertyName, isEmptyProperty, projectId);
-
-            case "barchart":
-                return ProcessBarChart(events, propertyName, isEmptyProperty, projectId);
-
-            case "piechart":
-                return ProcessPieChart(events, propertyName, isEmptyProperty, projectId);
-
-            case "numbercard":
-                return ProcessNumberCard(events, propertyName, isEmptyProperty);
-
-            default:
-                return ProcessLineChart(events, propertyName, days, isEmptyProperty, projectId);
-        }
-    }
-
-    private object ProcessLineChart(List<AnalyticEventDocument> events, string propertyName, int days, bool isEmptyProperty, string projectId)
-    {
-        // GLOBAL MODE: Always split by ProjectID for Line/StackedBar Charts
-        if (projectId == "GLOBAL")
-        {
-            var filteredEvents = events;
-            if (!isEmptyProperty)
-            {
-                filteredEvents = events.Where(e => e.PropertiesDict.ContainsKey(propertyName)).ToList();
-            }
-
-            var projectGroups = filteredEvents
-                .GroupBy(e => e.ProjectId)
-                .OrderByDescending(g => g.Count())
-                .Take(15) // Limit to top 15 projects
-                .ToList();
-
-            var multiLineData = new List<object>();
-
-            foreach (var group in projectGroups)
-            {
-                var pName = CleanProjectName(group.Key);
-                var dailyCounts = group.GroupBy(e => e.Timestamp.Date)
-                                       .Select(g => new { Date = g.Key, Count = g.Count() })
-                                       .ToList();
-
-                var points = new List<object>();
-                for (var i = 0; i < days; i++)
-                {
-                    var date = DateTime.UtcNow.Date.AddDays(-days + i + 1);
-                    var count = dailyCounts.FirstOrDefault(d => d.Date == date)?.Count ?? 0;
-                    points.Add(new { date = date.ToString("MMM dd"), count });
-                }
-                multiLineData.Add(new { label = pName, data = points });
-            }
-
-            return new { type = "multiLine", data = multiLineData };
-        }
-
-        // SINGLE PROJECT MODE
-        if (isEmptyProperty)
-        {
-            var dailyCounts = events.GroupBy(e => e.Timestamp.Date).Select(g => new { Date = g.Key, Count = g.Count() }).ToList();
-            var result = new List<object>();
-            for (var i = 0; i < days; i++)
-            {
-                var date = DateTime.UtcNow.Date.AddDays(-days + i + 1);
-                var count = dailyCounts.FirstOrDefault(d => d.Date == date)?.Count ?? 0;
-                result.Add(new { date = date.ToString("MMM dd"), count });
-            }
-            return new { type = "line", data = result };
-        }
-
-        return ProcessDistribution(events, propertyName, "line", projectId); 
-    }
-
-    private object ProcessPieChart(List<AnalyticEventDocument> events, string propertyName, bool isEmptyProperty, string projectId)
-    {
-        if (isEmptyProperty) return new { type = "pie", data = new[] { new { label = "Total Events", value = events.Count } } };
-        return ProcessDistribution(events, propertyName, "pie", projectId);
-    }
-
-    private object ProcessBarChart(List<AnalyticEventDocument> events, string propertyName, bool isEmptyProperty, string projectId)
-    {
-        if (isEmptyProperty)
-        {
-            var dailyCounts = events.GroupBy(e => e.Timestamp.Date).Select(g => new { label = g.Key.ToString("MMM dd"), value = g.Count() }).OrderBy(x => x.label).Take(100).ToList();
-            return new { type = "bar", data = dailyCounts };
-        }
-        return ProcessDistribution(events, propertyName, "bar", projectId);
-    }
-
-    private object ProcessDistribution(List<AnalyticEventDocument> events, string propertyName, string type, string projectId)
-    {
-        var propertyData = events
-            .Where(e => e.PropertiesDict.ContainsKey(propertyName))
-            .SelectMany(e =>
-            {
-                var propValue = e.PropertiesDict[propertyName];
-                IEnumerable<string> values;
-                
-                if (propValue is string s && s.StartsWith("[\"") && s.EndsWith("\"]")) {
-                    try { 
-                        values = s.Trim('[', ']').Replace("\"", "").Split(',').Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim()); 
-                    }
-                    catch { values = new[] { s }; }
-                }
-                else {
-                    values = new[] { propValue?.ToString() ?? "Unknown" };
-                }
-                
-                return values.Select(val => new { Value = val, ProjectId = e.ProjectId });
-            }).ToList();
-
-        var groupedData = propertyData.GroupBy(x => x.Value);
-
-        if (projectId == "GLOBAL")
-        {
-            groupedData = groupedData.Where(g => g.Select(x => x.ProjectId).Distinct().Count() >= 2);
-        }
-
-        var distribution = groupedData
-            .Select(g => new { label = g.Key, value = g.Count() })
-            .OrderByDescending(x => x.value)
-            .Take(100)
-            .ToList();
-            
-        if (type == "line") {
-             var lineData = distribution.Select(d => new { date = d.label, count = d.value }).ToList<object>();
-             return new { type = "line", data = lineData };
-        }
-
-        return new { type = type, data = distribution };
-    }
-
-    private object ProcessNumberCard(List<AnalyticEventDocument> events, string propertyName, bool isEmptyProperty)
-    {
-        if (isEmptyProperty) return new { type = "number", data = new { total = events.Count, sumValue = 0.0, avgValue = 0.0 } };
-        
-        var numericProperties = events.Where(e => e.PropertiesDict.ContainsKey(propertyName))
-            .Select(e => e.PropertiesDict[propertyName]?.ToString())
-            .Where(s => double.TryParse(s, out _)).Select(s => double.Parse(s)).ToList();
-
-        return new { type = "number", data = new { total = events.Count, sumValue = numericProperties.Sum(), avgValue = numericProperties.Any() ? numericProperties.Average() : 0.0 } };
     }
 }

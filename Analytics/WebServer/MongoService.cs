@@ -13,17 +13,6 @@ namespace KHSWeb.Services
         {
             var database = Config.GetDatabase();
             events = database.GetCollection<AnalyticEventDocument>(Config.MetricsCollectionName);
-            
-            CreateIndexes();
-        }
-
-        private void CreateIndexes()
-        {
-            var indexKeys = Builders<AnalyticEventDocument>.IndexKeys
-                .Ascending(m => m.Key)
-                .Descending(m => m.Timestamp);
-            
-            events.Indexes.CreateOne(new CreateIndexModel<AnalyticEventDocument>(indexKeys));
         }
 
         public async Task<string> InsertAnalyticsEventAsync(AnalyticEventDocument analyticEvent)
