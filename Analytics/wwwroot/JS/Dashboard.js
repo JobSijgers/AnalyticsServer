@@ -161,6 +161,7 @@ class GlobalDashboard extends BaseDashboard {
     constructor() {
         super();
         this.isGlobal = true;
+        this.projectToDelete = null;
         this.checkAuthentication();
         this.bindEvents();
         this.init();
@@ -195,13 +196,23 @@ class GlobalDashboard extends BaseDashboard {
         if (dateRange) {
             dateRange.addEventListener('change', () => this.loadGlobalConfigs());
         }
-        const newChartBtn = document.getElementById('new-chart-btn');
-        if(newChartBtn) {
-            newChartBtn.addEventListener('click', () => this.configManager.showConfigModal());
-        }
-        const createFirstBtn = document.getElementById('create-first-chart-btn');
-        if(createFirstBtn) {
-            createFirstBtn.addEventListener('click', () => this.configManager.showConfigModal());
+
+        // Delete Modal Events
+        const deleteModalClose = document.getElementById('delete-modal-close');
+        if (deleteModalClose) deleteModalClose.addEventListener('click', () => this.closeDeleteModal());
+
+        const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+        if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', () => this.closeDeleteModal());
+
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        if (confirmDeleteBtn) confirmDeleteBtn.addEventListener('click', () => this.handleDeleteConfirm());
+
+        const deleteInput = document.getElementById('delete-confirmation-input');
+        if (deleteInput) {
+            deleteInput.addEventListener('input', (e) => {
+                const btn = document.getElementById('confirm-delete-btn');
+                if (btn) btn.disabled = (e.target.value !== this.projectToDelete);
+            });
         }
     }
 
@@ -261,6 +272,9 @@ class GlobalDashboard extends BaseDashboard {
                 <div class="project-card-overlay" onclick="globalDashboard.selectProject('${safeProjectId}')">
                     <h3 class="project-title">${cleanName}</h3>
                 </div>
+                <button class="delete-project-btn" onclick="globalDashboard.requestDelete(event, '${safeProjectId}')" title="Delete Project">
+                    🗑️
+                </button>
                 <div class="upload-btn-container">
                     <label for="upload-${cardId}" class="upload-label-btn">Change Cover</label>
                     <input type="file" id="upload-${cardId}" accept="image/*" style="display: none;"
@@ -270,6 +284,64 @@ class GlobalDashboard extends BaseDashboard {
             grid.appendChild(card);
             this.loadProjectImage(project, cardId);
         });
+    }
+
+    requestDelete(event, projectId) {
+        event.stopPropagation();
+        this.projectToDelete = projectId;
+
+        const modal = document.getElementById('delete-modal');
+        const nameDisplay = document.getElementById('delete-project-name-display');
+        const input = document.getElementById('delete-confirmation-input');
+        const btn = document.getElementById('confirm-delete-btn');
+
+        if (modal && nameDisplay && input && btn) {
+            nameDisplay.textContent = projectId;
+            input.value = '';
+            input.placeholder = `Type "${projectId}" to confirm`;
+            btn.disabled = true;
+            modal.classList.remove('hidden');
+            input.focus();
+        }
+    }
+
+    closeDeleteModal() {
+        const modal = document.getElementById('delete-modal');
+        if (modal) modal.classList.add('hidden');
+        this.projectToDelete = null;
+    }
+
+    async handleDeleteConfirm() {
+        if (!this.projectToDelete) return;
+
+        const projectId = this.projectToDelete;
+        const btn = document.getElementById('confirm-delete-btn');
+        const originalText = btn.textContent;
+        btn.textContent = "Deleting...";
+        btn.disabled = true;
+
+        try {
+            const response = await tokenManager.authenticatedFetch(`${this.baseUrl}/projects/delete`, {
+                method: 'POST',
+                body: JSON.stringify({ ProjectId: projectId })
+            });
+
+            if (response.ok) {
+                toastManager.success(`Project ${projectId} deleted.`);
+                this.closeDeleteModal();
+                this.init(); // Refresh grid
+            } else {
+                const data = await response.json();
+                toastManager.error(data.message || "Failed to delete project");
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            console.error(error);
+            toastManager.error("An error occurred while deleting the project.");
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
     }
 
     async loadProjectImage(projectId, cardId) {

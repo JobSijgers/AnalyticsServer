@@ -12,32 +12,6 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .global-charts-section {
-            width: 100%;
-            max-width: 1400px;
-            margin: 0 auto 40px auto;
-            padding: 0 20px;
-        }
-        .global-charts-header {
-            margin-bottom: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .global-charts-header h2 {
-            font-family: 'Orbitron', sans-serif;
-            color: rgb(218, 135, 39);
-            margin: 0;
-        }
-        .charts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-        }
-    </style>
 </head>
 <body>
 <canvas id="background-canvas"></canvas>
@@ -170,6 +144,36 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<div id="delete-modal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Delete Project</h3>
+            <button class="modal-close" id="delete-modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="warning-text">
+                Are you sure you want to delete project <strong id="delete-project-name-display" style="color: white; font-size: 1.1em;"></strong>?
+            </p>
+            <p class="sub-text">
+                This action is <strong>irreversible</strong>. All analytics data, events, and configurations associated with this project will be permanently destroyed.
+            </p>
+
+            <div class="delete-input-group">
+                <label for="delete-confirmation-input">Type the project name to confirm:</label>
+                <input type="text" id="delete-confirmation-input" class="delete-input"
+                       placeholder="Project Name" autocomplete="off">
+            </div>
+
+            <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button id="cancel-delete-btn" class="control-btn secondary">Cancel</button>
+                <button id="confirm-delete-btn" class="control-btn danger-btn" disabled>
+                    Delete Project
+                </button>
+            </div>
         </div>
     </div>
 </div>
