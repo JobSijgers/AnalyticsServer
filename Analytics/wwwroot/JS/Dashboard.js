@@ -46,9 +46,6 @@ class BaseDashboard {
                     this.chartConfigs = [];
                 }
 
-                // CRITICAL CHANGE: Do NOT await renderConfiguredCharts.
-                // We rely on the internal change in ConfigManager to start rendering charts
-                // without blocking this method, but we must ensure the configs are loaded.
                 this.configManager.renderConfiguredCharts();
                 return true;
             }
@@ -56,6 +53,14 @@ class BaseDashboard {
             console.error(error);
             return false;
         }
+    }
+
+    async hashPassword(password) {
+        const msgBuffer = new TextEncoder().encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
     }
 }
 
@@ -119,7 +124,6 @@ class ProjectDashboard extends BaseDashboard {
             this.toggleLoading(true);
         }
         try {
-            // Await configuration metadata load, then let chart rendering run asynchronously
             await this.loadChartConfigurations(this.currentProject);
             this.updateDashboardState();
         } catch (error) {
@@ -197,7 +201,6 @@ class GlobalDashboard extends BaseDashboard {
             dateRange.addEventListener('change', () => this.loadGlobalConfigs());
         }
 
-        // Delete Modal Events
         const deleteModalClose = document.getElementById('delete-modal-close');
         if (deleteModalClose) deleteModalClose.addEventListener('click', () => this.closeDeleteModal());
 
@@ -208,12 +211,17 @@ class GlobalDashboard extends BaseDashboard {
         if (confirmDeleteBtn) confirmDeleteBtn.addEventListener('click', () => this.handleDeleteConfirm());
 
         const deleteInput = document.getElementById('delete-confirmation-input');
-        if (deleteInput) {
-            deleteInput.addEventListener('input', (e) => {
-                const btn = document.getElementById('confirm-delete-btn');
-                if (btn) btn.disabled = (e.target.value !== this.projectToDelete);
-            });
-        }
+        const passInput = document.getElementById('delete-password-input');
+
+        const checkInputs = () => {
+            const btn = document.getElementById('confirm-delete-btn');
+            const nameMatch = deleteInput.value === this.projectToDelete;
+            const hasPass = passInput.value.length > 0;
+            if (btn) btn.disabled = !(nameMatch && hasPass);
+        };
+
+        if (deleteInput) deleteInput.addEventListener('input', checkInputs);
+        if (passInput) passInput.addEventListener('input', checkInputs);
     }
 
     async init() {
@@ -293,12 +301,14 @@ class GlobalDashboard extends BaseDashboard {
         const modal = document.getElementById('delete-modal');
         const nameDisplay = document.getElementById('delete-project-name-display');
         const input = document.getElementById('delete-confirmation-input');
+        const passInput = document.getElementById('delete-password-input');
         const btn = document.getElementById('confirm-delete-btn');
 
         if (modal && nameDisplay && input && btn) {
             nameDisplay.textContent = projectId;
             input.value = '';
             input.placeholder = `Type "${projectId}" to confirm`;
+            passInput.value = '';
             btn.disabled = true;
             modal.classList.remove('hidden');
             input.focus();
@@ -315,21 +325,28 @@ class GlobalDashboard extends BaseDashboard {
         if (!this.projectToDelete) return;
 
         const projectId = this.projectToDelete;
+        const passInput = document.getElementById('delete-password-input');
         const btn = document.getElementById('confirm-delete-btn');
         const originalText = btn.textContent;
-        btn.textContent = "Deleting...";
+
+        btn.textContent = "Processing...";
         btn.disabled = true;
 
         try {
+            const passwordHash = await this.hashPassword(passInput.value);
+
             const response = await tokenManager.authenticatedFetch(`${this.baseUrl}/projects/delete`, {
                 method: 'POST',
-                body: JSON.stringify({ ProjectId: projectId })
+                body: JSON.stringify({
+                    ProjectId: projectId,
+                    PasswordHash: passwordHash
+                })
             });
 
             if (response.ok) {
                 toastManager.success(`Project ${projectId} deleted.`);
                 this.closeDeleteModal();
-                this.init(); // Refresh grid
+                this.init();
             } else {
                 const data = await response.json();
                 toastManager.error(data.message || "Failed to delete project");
