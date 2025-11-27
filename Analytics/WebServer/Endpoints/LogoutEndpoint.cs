@@ -8,7 +8,7 @@ namespace KHSWeb.Endpoints
     {
         public override string Path => "/api/auth/logout";
         public override METHOD Method => METHOD.POST;
-        public override Delegate Action => async (HttpContext context) =>
+        public override Delegate Action => (HttpContext context) =>
         {
             try
             {
@@ -48,7 +48,7 @@ namespace KHSWeb.Endpoints
                 return xAuthHeader.ToString();
             }
 
-            return null;
+            return null!;
         }
     }
 }

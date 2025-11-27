@@ -22,7 +22,7 @@ namespace KHSWeb.Services
             var directory = Path.GetDirectoryName(_configFilePath);
             if (!Directory.Exists(directory))
             {
-                Directory.CreateDirectory(directory);
+                Directory.CreateDirectory(directory!);
             }
         }
 

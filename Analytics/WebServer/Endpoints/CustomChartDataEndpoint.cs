@@ -42,7 +42,7 @@ public class CustomChartDataEndpoint : WebEndpoint
                 return Results.Json(new ApiResponse<ChartDataResponse> { Success = false, Message = "Required fields missing" }, statusCode: 400);
             }
 
-            string cacheFilePath = null;
+            string cacheFilePath = null!;
             if (!string.IsNullOrEmpty(configId))
             {
                 var safeConfigId = string.Join("_", configId.Split(System.IO.Path.GetInvalidFileNameChars()));

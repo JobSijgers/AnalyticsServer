@@ -7,7 +7,7 @@ namespace KHSWeb
 {
     public class WebServer
     {
-        private WebApplication _app;
+        private WebApplication _app = null!;
 
         public WebServer()
         {
@@ -48,14 +48,14 @@ namespace KHSWeb
 
                 app.UseAuthMiddleware();    
                 DebugUtils.Print("Scanning for WebEndpoint implementations");
-                var endpoints = Assembly.GetExecutingAssembly()
+                IEnumerable<WebEndpoint?> endpoints = Assembly.GetExecutingAssembly()
                     .GetTypes()
                     .Where(t => t.IsSubclassOf(typeof(WebEndpoint)) && !t.IsAbstract)
                     .Select(t => Activator.CreateInstance(t) as WebEndpoint);
 
                 foreach (var ep in endpoints)
                 {
-                    DebugUtils.Print($"Registering endpoint: {ep.Method} {ep.Path} -> {ep.GetType().FullName}");
+                    DebugUtils.Print($"Registering endpoint: {ep!.Method} {ep.Path} -> {ep.GetType().FullName}");
                     switch (ep.Method)
                     {
                         case WebEndpoint.METHOD.GET:

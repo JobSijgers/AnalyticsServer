@@ -4,7 +4,7 @@ public static class TokenManager
 {
     private static readonly ConcurrentDictionary<string, DateTime> _tokens = new();
     private static readonly TimeSpan _defaultTokenTimeout = TimeSpan.FromDays(7);
-    private static Timer _cleanupTimer;
+    private static Timer _cleanupTimer = null!;
     private static bool _initialized = false;
     private static readonly Lock _initLock = new Lock();
 
@@ -37,7 +37,7 @@ public static class TokenManager
                     TokenTimeout = tokenTimeout;
                     
                     // Set up cleanup timer to run every minute
-                    _cleanupTimer = new Timer(CleanupExpiredTokens, null, 
+                    _cleanupTimer = new Timer(CleanupExpiredTokens!, null, 
                         TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
                     
                     _initialized = true;
@@ -184,21 +184,6 @@ public static class TokenManager
         }
     }
 
-    /// <summary>
-    /// Manually triggers cleanup of expired tokens
-    /// </summary>
-    public static void ManualCleanup()
-    {
-        CleanupExpiredTokens(null);
-    }
-
-    /// <summary>
-    /// Clears all tokens (use with caution!)
-    /// </summary>
-    public static void ClearAllTokens()
-    {
-        _tokens.Clear();
-    }
 
     /// <summary>
     /// Shuts down the TokenManager and cleans up resources
@@ -220,6 +205,4 @@ public static class TokenManager
             Initialize();
         }
     }
-    
-    
 }

@@ -1,4 +1,4 @@
-﻿using Utils;
+﻿﻿using Utils;
 using KHSWeb.Services;
 
 namespace KHSWeb.Middleware
@@ -18,7 +18,7 @@ namespace KHSWeb.Middleware
 
         private readonly List<string> _publicExtensions = new List<string>
         {
-            ".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg"
+            ".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg", ".woff", ".woff2", ".ttf", ".eot"
         };
 
         public AuthMiddleware(RequestDelegate next)
@@ -29,9 +29,16 @@ namespace KHSWeb.Middleware
         public async Task InvokeAsync(HttpContext context)
         {
             var path = context.Request.Path;
+            
+            // Debug logging for static file requests
+            if (path == "/" || path.Value!.EndsWith(".html"))
+            {
+                DebugUtils.Print($"AuthMiddleware: Processing static file request '{path}'");
+            }
 
             if (IsStaticPublicPath(path))
             {
+                DebugUtils.Print($"AuthMiddleware: Allowing public access to '{path}'");
                 await _next(context);
                 return;
             }
@@ -100,11 +107,22 @@ namespace KHSWeb.Middleware
 
         private bool IsStaticPublicPath(PathString path)
         {
-            if (_staticPublicPaths.Contains(path)) return true;
+            if (_staticPublicPaths.Contains(path)) 
+            {
+                DebugUtils.Print($"AuthMiddleware: Path '{path}' is in static public paths list");
+                return true;
+            }
+            
             foreach (var extension in _publicExtensions)
             {
-                if (path.Value.EndsWith(extension, StringComparison.OrdinalIgnoreCase)) return true;
+                if (path.Value!.EndsWith(extension, StringComparison.OrdinalIgnoreCase)) 
+                {
+                    DebugUtils.Print($"AuthMiddleware: Path '{path}' has public extension '{extension}'");
+                    return true;
+                }
             }
+            
+            DebugUtils.Print($"AuthMiddleware: Path '{path}' requires authentication");
             return false;
         }
 
@@ -117,7 +135,7 @@ namespace KHSWeb.Middleware
             }
             if (headers.TryGetValue("X-Auth-Token", out var xHeader)) return xHeader.ToString();
             
-            return null;
+            return null!;
         }
     }
     

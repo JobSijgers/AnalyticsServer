@@ -272,6 +272,8 @@ class ConfigManager {
             const chartHeight = config.chartType === 'NumberCard' ? '150px' : '300px';
             chartElement.className = config.chartType === 'NumberCard' ? 'chart-widget small' : 'chart-widget';
             chartElement.setAttribute('data-chart-id', config.id);
+            // Ensure relative positioning for the icon
+            chartElement.style.position = 'relative';
             chartElement.innerHTML = this.getSkeletonHTML(config, chartHeight);
             this.insertInOrder(container, chartElement, config);
         }
@@ -282,7 +284,19 @@ class ConfigManager {
     getSkeletonHTML(config, chartHeight) {
         const dashboardVar = this.dashboard.isGlobal ? 'globalDashboard' : 'propertiesDashboard';
         const editButton = `<button class="table-action" onclick="${dashboardVar}.configManager.editChart('${config.id}')">Edit</button>`;
-        return `<div class="chart-widget-header"><h4>${config.displayName || config.eventKey}</h4><div class="chart-widget-actions">${editButton}<button class="table-action delete" onclick="${dashboardVar}.configManager.deleteChart('${config.id}')">Delete</button></div></div><div class="chart-container" style="height: ${chartHeight};"><div id="loading-${config.id}" class="loading-spinner-container"><div class="loading-spinner"></div></div><canvas id="chart-${config.id}" class="hidden-canvas"></canvas></div>`;
+
+        let copyIcon = '';
+        if (config.chartType === 'NumberCard') {
+            const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+            // Barely visible (opacity 0.1) until hovered
+            const btnStyle = "position: absolute; bottom: 5px; right: 5px; opacity: 0.1; transition: opacity 0.2s; background: none; border: none; color: #fff; cursor: pointer; padding: 5px; z-index: 20;";
+            const onHover = "this.style.opacity='1'";
+            const onLeave = "this.style.opacity='0.1'";
+
+            copyIcon = `<button onclick="${dashboardVar}.copyMetricLink('${config.id}')" style="${btnStyle}" onmouseenter="${onHover}" onmouseleave="${onLeave}" title="Copy API Link">${svgIcon}</button>`;
+        }
+
+        return `<div class="chart-widget-header"><h4>${config.displayName || config.eventKey}</h4><div class="chart-widget-actions">${editButton}<button class="table-action delete" onclick="${dashboardVar}.configManager.deleteChart('${config.id}')">Delete</button></div></div><div class="chart-container" style="height: ${chartHeight};"><div id="loading-${config.id}" class="loading-spinner-container"><div class="loading-spinner"></div></div><canvas id="chart-${config.id}" class="hidden-canvas"></canvas></div>${copyIcon}`;
     }
 
     createChartSkeleton(container, config) {
@@ -292,6 +306,7 @@ class ConfigManager {
         if (config.chartType === 'NumberCard') { sizeClass = 'chart-widget small'; chartHeight = '150px'; }
         chartElement.className = sizeClass;
         chartElement.setAttribute('data-chart-id', config.id);
+        chartElement.style.position = 'relative'; // Important for absolute positioning of the icon
         chartElement.innerHTML = this.getSkeletonHTML(config, chartHeight);
         this.insertInOrder(container, chartElement, config);
         return chartElement;

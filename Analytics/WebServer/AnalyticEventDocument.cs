@@ -47,7 +47,7 @@ public static class BsonDocumentExtensions
     
     private static object BsonValueToObject(MongoDB.Bson.BsonValue value)
     {
-        return value.BsonType switch
+        return (value.BsonType switch
         {
             MongoDB.Bson.BsonType.String => value.AsString,
             MongoDB.Bson.BsonType.Int32 => value.AsInt32,
@@ -58,7 +58,7 @@ public static class BsonDocumentExtensions
             MongoDB.Bson.BsonType.Array => value.AsBsonArray.Select(BsonValueToObject).ToList(),
             MongoDB.Bson.BsonType.Document => value.AsBsonDocument.ToDictionary(),
             _ => value.ToString()
-        };
+        })!;
     }
     
     private static MongoDB.Bson.BsonValue ObjectToBsonValue(object obj)

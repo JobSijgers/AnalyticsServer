@@ -9,7 +9,7 @@ namespace KHS
     class Program
     {
         private static readonly CancellationTokenSource _cts = new();
-        private static CacheUpdateService _cacheService;
+        private static CacheUpdateService _cacheService = null!;
 
         static async Task Main(string[] args)
         {

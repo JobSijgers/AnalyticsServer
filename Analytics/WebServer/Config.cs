@@ -3,7 +3,7 @@ using MongoDB.Driver;
 
 public static class Config
 {
-    public const string AppUrl = "http://localhost:5000";
+    public static string AppUrl => Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? "https://*:5000";
     public const string MongoConnectionString = "mongodb://analytics_app:JungleBeef@145.223.34.202:27017/AnalyticsDB?authSource=AnalyticsDB";
     public const string DatabaseName = "AnalyticsDB";
     public const string MetricsCollectionName = "AnalyticsEvents";

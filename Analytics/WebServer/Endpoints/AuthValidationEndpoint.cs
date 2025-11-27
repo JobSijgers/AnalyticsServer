@@ -54,6 +54,6 @@ namespace KHSWeb.Endpoints
 
     public class AuthValidationRequest
     {
-        public string Token { get; set; }
+        public string Token { get; set; } = string.Empty;
     }
 }

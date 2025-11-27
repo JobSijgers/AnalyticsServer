@@ -45,7 +45,7 @@ public class DictionarySerializer : IBsonSerializer<Dictionary<string, object>>
 
     private object ConvertBsonValue(BsonValue bsonValue)
     {
-        return bsonValue.BsonType switch
+        return (bsonValue.BsonType switch
         {
             BsonType.String => bsonValue.AsString,
             BsonType.Int32 => bsonValue.AsInt32,
@@ -57,7 +57,7 @@ public class DictionarySerializer : IBsonSerializer<Dictionary<string, object>>
             BsonType.Document => ConvertBsonDocument(bsonValue.AsBsonDocument),
             BsonType.Array => ConvertBsonArray(bsonValue.AsBsonArray),
             _ => bsonValue.ToString()
-        };
+        })!;
     }
 
     private Dictionary<string, object> ConvertBsonDocument(BsonDocument doc)

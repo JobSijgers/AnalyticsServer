@@ -763,7 +763,7 @@ public class ChartDataService
             return builder.Or(builder.Eq(fieldName, boolVal), builder.Eq(fieldName, boolVal.ToString()), builder.Eq(fieldName, boolVal.ToString().ToLower()));
         }
 
-        return condition.Operator switch
+        return (condition.Operator switch
         {
             "=" => builder.Eq(fieldName, val),
             "!=" => builder.Ne(fieldName, val),
@@ -772,6 +772,6 @@ public class ChartDataService
             ">=" => builder.Gte(fieldName, val),
             "<=" => builder.Lte(fieldName, val),
             _ => null
-        };
+        })!;
     }
 }

@@ -1,6 +1,6 @@
 class BaseDashboard {
     constructor() {
-        this.baseUrl = 'http://localhost:5000/api';
+        this.baseUrl = '/api';
         this.chartManager = new ChartManager(this);
         this.configManager = new ConfigManager(this);
         this.chartConfigs = [];
@@ -61,6 +61,22 @@ class BaseDashboard {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         return hashHex;
+    }
+
+    copyMetricLink(chartId) {
+        const url = `${this.baseUrl}/public/metric?id=${chartId}`;
+        navigator.clipboard.writeText(url).then(() => {
+            if (typeof toastManager !== 'undefined') {
+                toastManager.success('Link copied to clipboard');
+            } else {
+                alert('Link copied to clipboard');
+            }
+        }).catch(err => {
+            console.error('Could not copy text: ', err);
+            if (typeof toastManager !== 'undefined') {
+                toastManager.error('Failed to copy link');
+            }
+        });
     }
 }
 
