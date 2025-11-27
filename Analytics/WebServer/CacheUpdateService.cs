@@ -25,7 +25,6 @@ public class CacheUpdateService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Initial run on startup
         await UpdateAllCaches();
 
         using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
@@ -43,6 +42,7 @@ public class CacheUpdateService : BackgroundService
             
             var configs = await _configService.LoadAllConfigs();
             int updatedCount = 0;
+            var validCacheFiles = new HashSet<string>();
 
             foreach (var config in configs)
             {
@@ -74,6 +74,8 @@ public class CacheUpdateService : BackgroundService
                         var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
                         var jsonString = JsonSerializer.Serialize(response, jsonOptions);
                         await File.WriteAllTextAsync(cacheFilePath, jsonString);
+                        
+                        validCacheFiles.Add(cacheFilePath);
                         updatedCount++;
                     }
                     catch (Exception ex)
@@ -83,7 +85,26 @@ public class CacheUpdateService : BackgroundService
                 }
             }
 
-            DebugUtils.Print($"Background cache update complete. Updated {updatedCount} cache files.");
+            int deletedCount = 0;
+            var existingFiles = Directory.GetFiles(CacheDirectory, "chart_*.json");
+
+            foreach (var file in existingFiles)
+            {
+                if (!validCacheFiles.Contains(file))
+                {
+                    try
+                    {
+                        File.Delete(file);
+                        deletedCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugUtils.PrintError($"Error deleting old cache file {file}: {ex.Message}");
+                    }
+                }
+            }
+
+            DebugUtils.Print($"Background cache update complete. Updated {updatedCount} cache files. Deleted {deletedCount} obsolete files.");
         }
         catch (Exception ex)
         {

@@ -5,27 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="1a9925c0-3b97-4d78-b9aa-db5368dc6363" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/WebServer/CacheUpdateService.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/WebServer/ChartDataService.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/WebServer/Endpoints/ExternalMetricEndpoint.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/WebServer/FilterCondition.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/WebServer/RouteSecurityRegistry.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Analytics.sln.DotSettings.user" beforeDir="false" afterPath="$PROJECT_DIR$/../Analytics.sln.DotSettings.user" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.name" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.name" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Program.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/AuthMiddleware.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/AuthMiddleware.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/Endpoints/AnalyticBatchEndpoint.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/Endpoints/AnalyticBatchEndpoint.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/Endpoints/AuthValidationEndpoint.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/Endpoints/AuthValidationEndpoint.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/Endpoints/CustomChartDataEndpoint.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/Endpoints/CustomChartDataEndpoint.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/Endpoints/LoginEndpoint.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/Endpoints/LoginEndpoint.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/Endpoints/SaveEventConfigEndpoint.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/Endpoints/SaveEventConfigEndpoint.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/Endpoints/WebEndpoint.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/Endpoints/WebEndpoint.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/EventDisplayConfig.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/EventDisplayConfig.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/MongoService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/MongoService.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/WebServer/WebServer.cs" beforeDir="false" afterPath="$PROJECT_DIR$/WebServer/WebServer.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wwwroot/JS/ConfigManager.js" beforeDir="false" afterPath="$PROJECT_DIR$/wwwroot/JS/ConfigManager.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wwwroot/JS/Particles.js" beforeDir="false" afterPath="$PROJECT_DIR$/wwwroot/JS/Particles.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Analytics.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Analytics.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wwwroot/Index.html" beforeDir="false" afterPath="$PROJECT_DIR$/wwwroot/Index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wwwroot/JS/Dashboard.js" beforeDir="false" afterPath="$PROJECT_DIR$/wwwroot/JS/Dashboard.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wwwroot/project.html" beforeDir="false" afterPath="$PROJECT_DIR$/wwwroot/project.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -82,6 +67,9 @@
       <workItem from="1764248887901" duration="9000" />
       <workItem from="1764248950901" duration="7000" />
       <workItem from="1764249550557" duration="38000" />
+      <workItem from="1764249827617" duration="727000" />
+      <workItem from="1764254759960" duration="6000" />
+      <workItem from="1764255125493" duration="3000" />
     </task>
     <servers />
   </component>

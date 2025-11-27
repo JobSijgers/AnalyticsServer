@@ -82,6 +82,7 @@ class ProjectDashboard extends BaseDashboard {
         document.getElementById('project-select').addEventListener('change', (e) => {
             this.currentProject = e.target.value;
             localStorage.setItem('khs_analytics_projectId', this.currentProject);
+            this.updateProjectTitle();
             this.loadDashboardData(true);
         });
         document.getElementById('date-range').addEventListener('change', () => this.loadDashboardData(true));
@@ -97,8 +98,22 @@ class ProjectDashboard extends BaseDashboard {
 
     async init() {
         await this.loadProjectsList();
+        this.updateProjectTitle();
         this.toggleLoading(false);
         this.loadDashboardData(false);
+    }
+
+    updateProjectTitle() {
+        const titleEl = document.getElementById('project-name-display');
+        if (titleEl && this.currentProject) {
+            titleEl.textContent = this.cleanProjectName(this.currentProject);
+        }
+    }
+
+    cleanProjectName(projectName) {
+        if (!projectName) return '';
+        const underscoreIndex = projectName.indexOf('_');
+        return underscoreIndex !== -1 ? projectName.substring(underscoreIndex + 1) : projectName;
     }
 
     async loadProjectsList() {
