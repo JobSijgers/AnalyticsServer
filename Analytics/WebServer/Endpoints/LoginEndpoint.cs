@@ -11,6 +11,8 @@ namespace KHSWeb.Endpoints
     {
         public override string Path => "/api/auth/login";
         public override METHOD Method => METHOD.POST;
+        public override EndpointSecurity Security => EndpointSecurity.Public;
+        
         public override Delegate Action => async (HttpContext context) =>
         {
             try

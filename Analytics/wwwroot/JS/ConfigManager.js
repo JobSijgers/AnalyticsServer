@@ -313,26 +313,51 @@ class ConfigManager {
 
     async fetchAndRenderChart(chartElement, config) {
         const chartId = `chart-${config.id}`;
-        const loadingContainer = document.getElementById(`loading-${config.id}`);
         const canvas = document.getElementById(chartId);
-        if (canvas) canvas.classList.add('hidden');
-        try {
-            const chartData = await this.loadChartData(config);
+        let hasCachedData = false;
+
+        const cachedData = await this.loadChartData(config, true);
+
+        if (cachedData) {
+            hasCachedData = true;
+            const loadingContainer = document.getElementById(`loading-${config.id}`);
             if (loadingContainer) loadingContainer.remove();
-            if (chartData) {
-                const dataCount = chartData.data?.length || 0;
+
+            const dataCount = cachedData.data?.length || 0;
+            if ((config.chartType === 'BarChart' || config.chartType === 'LineChart' || config.chartType === 'StackedBarChart') && dataCount > 10) {
+                chartElement.classList.add('large');
+            }
+
+            this.dashboard.chartManager.renderChart(chartId, cachedData, config.chartType, config);
+            if (canvas) canvas.classList.remove('hidden');
+        }
+
+        if (canvas && !hasCachedData) canvas.classList.add('hidden');
+
+        try {
+            const freshData = await this.loadChartData(config, false);
+
+            const loadingContainer = document.getElementById(`loading-${config.id}`);
+            if (loadingContainer) loadingContainer.remove();
+
+            if (freshData) {
+                const dataCount = freshData.data?.length || 0;
                 if ((config.chartType === 'BarChart' || config.chartType === 'LineChart' || config.chartType === 'StackedBarChart') && dataCount > 10) {
                     chartElement.classList.add('large');
                 } else if (config.chartType !== 'NumberCard') {
                     chartElement.classList.remove('large');
                 }
-                this.dashboard.chartManager.renderChart(chartId, chartData, config.chartType, config);
+                this.dashboard.chartManager.renderChart(chartId, freshData, config.chartType, config);
                 if (canvas) canvas.classList.remove('hidden');
             }
-        } catch (error) { if (loadingContainer) loadingContainer.remove(); console.error(error); }
+        } catch (error) {
+            const loadingContainer = document.getElementById(`loading-${config.id}`);
+            if (loadingContainer) loadingContainer.remove();
+            console.error(error);
+        }
     }
 
-    async loadChartData(config) {
+    async loadChartData(config, useCache) {
         const isGlobal = this.dashboard.isGlobal === true;
         const days = document.getElementById('date-range')?.value || '30';
         try {
@@ -342,11 +367,14 @@ class ConfigManager {
                 propertyName: config.propertyToDisplay || '',
                 chartType: config.chartType,
                 days: days,
-                filtersJson: config.filtersJson || ''
+                filtersJson: config.filtersJson || '',
+                configId: config.id || '',
+                useCache: useCache ? 'true' : 'false'
             });
             const url = `${this.dashboard.baseUrl}/dashboard/custom-chart?${queryParams}`;
             const response = await tokenManager.authenticatedFetch(url);
             if (response.ok) {
+                if (response.status === 204) return null;
                 const data = await response.json();
                 if (data.success && data.data) return data.data.chartData;
             }
@@ -394,7 +422,7 @@ class ConfigManager {
             displayName: 'Preview',
             filtersJson: document.getElementById('config-filters-json')?.value || ''
         };
-        const chartData = await this.loadChartData(tempConfig);
+        const chartData = await this.loadChartData(tempConfig, false);
         if (chartData) {
             this.dashboard.chartManager.renderChart('preview-chart-canvas', chartData, chartType, tempConfig);
             if(previewInfo) previewInfo.textContent = `Preview: ${eventKey}`;

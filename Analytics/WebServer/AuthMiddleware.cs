@@ -1,32 +1,24 @@
-﻿// [file name]: AuthMiddleware.cs (updated)
-using Utils;
+﻿using Utils;
+using KHSWeb.Services;
 
 namespace KHSWeb.Middleware
 {
     public class AuthMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly List<string> _publicEndpoints = new List<string>
+        
+        // Static files and SPA routes that are always public
+        private readonly List<string> _staticPublicPaths = new List<string>
         {
-            "/api/auth/login",
-            "/api/auth/validate",
-            "/", // Root path
-            "/index.html", // Login page
-            "/dashboard.html" // Let through but TokenManager.js will handle redirect
+            "/", 
+            "/index.html",
+            "/dashboard.html",
+            "/project.html"
         };
 
-        // Add file extensions that should be publicly accessible
         private readonly List<string> _publicExtensions = new List<string>
         {
-            ".html",
-            ".css",
-            ".js",
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".gif",
-            ".ico",
-            ".svg"
+            ".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg"
         };
 
         public AuthMiddleware(RequestDelegate next)
@@ -38,125 +30,97 @@ namespace KHSWeb.Middleware
         {
             var path = context.Request.Path;
 
-            // Check if this is a public endpoint or static file
-            if (IsPublicPath(path))
+            if (IsStaticPublicPath(path))
             {
                 await _next(context);
                 return;
             }
 
-            // Check if this is the batch endpoint - use hardcoded token validation
-            if (path.StartsWithSegments("/api/analytics/batch"))
+            var securityLevel = RouteSecurityRegistry.GetSecurityLevel(path) ?? EndpointSecurity.AdminOnly;
+
+            switch (securityLevel)
             {
-                // Extract token from headers for batch endpoint
-                var token = ExtractToken(context.Request.Headers);
-
-                if (string.IsNullOrEmpty(token))
-                {
-                    DebugUtils.PrintError($"No token provided for batch endpoint: {context.Request.Path}");
-                    context.Response.StatusCode = 401;
-                    await context.Response.WriteAsJsonAsync(new { 
-                        success = false, 
-                        message = "Authentication token required for batch endpoint" 
-                    });
+                case EndpointSecurity.Public:
+                    await _next(context);
                     return;
-                }
 
-                // Validate hardcoded token for batch endpoint
-                if (token != Config.UnityClientToken)
-                {
-                    DebugUtils.PrintError($"Invalid hardcoded token for batch endpoint: {context.Request.Path}");
-                    context.Response.StatusCode = 401;
-                    await context.Response.WriteAsJsonAsync(new { 
-                        success = false, 
-                        message = "Invalid token for batch endpoint" 
-                    });
-                    return;
-                }
+                case EndpointSecurity.Unity:
+                    if (!await ValidateUnityToken(context)) 
+                        return;
+                    break;
 
-                DebugUtils.PrintSuccess($"Hardcoded token validated for batch endpoint: {context.Request.Path}");
-                await _next(context);
-                return;
-            }
-
-            // For other API endpoints, use the normal token validation
-            if (path.StartsWithSegments("/api"))
-            {
-                // Extract token from headers
-                var token = ExtractToken(context.Request.Headers);
-
-                if (string.IsNullOrEmpty(token))
-                {
-                    DebugUtils.PrintError($"No token provided for protected endpoint: {context.Request.Path}");
-                    context.Response.StatusCode = 401;
-                    await context.Response.WriteAsJsonAsync(new { 
-                        success = false, 
-                        message = "Authentication token required" 
-                    });
-                    return;
-                }
-
-                // Validate token using TokenManager for non-batch endpoints
-                if (!TokenManager.IsTokenValid(token))
-                {
-                    DebugUtils.PrintError($"Invalid token for endpoint: {context.Request.Path}");
-                    context.Response.StatusCode = 401;
-                    await context.Response.WriteAsJsonAsync(new { 
-                        success = false, 
-                        message = "Invalid or expired token" 
-                    });
-                    return;
-                }
-
-                DebugUtils.PrintSuccess($"Token validated for endpoint: {context.Request.Path}");
+                case EndpointSecurity.AdminOnly:
+                    if (!await ValidateAdminToken(context)) 
+                        return;
+                    break;
             }
 
             await _next(context);
         }
 
-        private bool IsPublicPath(PathString path)
+        private async Task<bool> ValidateUnityToken(HttpContext context)
         {
-            // Check exact public endpoints
-            if (_publicEndpoints.Contains(path))
-                return true;
+            var token = ExtractToken(context.Request.Headers);
 
-            // Check if it's a static file
-            foreach (var extension in _publicExtensions)
+            if (string.IsNullOrEmpty(token))
             {
-                if (path.Value.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
-                    return true;
+                DebugUtils.PrintError($"No token for Unity endpoint: {context.Request.Path}");
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsJsonAsync(new { success = false, message = "Unity Token required" });
+                return false;
             }
 
-            // Root path
-            if (path == "/" || string.IsNullOrEmpty(path.Value) || path.Value == "/")
-                return true;
+            if (token != Config.UnityClientToken)
+            {
+                DebugUtils.PrintError($"Invalid Unity token: {context.Request.Path}");
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsJsonAsync(new { success = false, message = "Invalid Unity Token" });
+                return false;
+            }
 
+            return true;
+        }
+
+        private async Task<bool> ValidateAdminToken(HttpContext context)
+        {
+            if (!context.Request.Path.StartsWithSegments("/api")) return true;
+
+            var token = ExtractToken(context.Request.Headers);
+
+            if (string.IsNullOrEmpty(token) || !TokenManager.IsTokenValid(token))
+            {
+                DebugUtils.PrintError($"Unauthorized Admin Access: {context.Request.Path}");
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsJsonAsync(new { success = false, message = "Unauthorized" });
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool IsStaticPublicPath(PathString path)
+        {
+            if (_staticPublicPaths.Contains(path)) return true;
+            foreach (var extension in _publicExtensions)
+            {
+                if (path.Value.EndsWith(extension, StringComparison.OrdinalIgnoreCase)) return true;
+            }
             return false;
         }
 
         private string ExtractToken(IHeaderDictionary headers)
         {
-            // Check Authorization header
             if (headers.TryGetValue("Authorization", out var authHeader))
             {
-                var headerValue = authHeader.ToString();
-                if (headerValue.StartsWith("Bearer "))
-                {
-                    return headerValue.Substring(7);
-                }
+                var val = authHeader.ToString();
+                if (val.StartsWith("Bearer ")) return val.Substring(7);
             }
-
-            // Check X-Auth-Token header
-            if (headers.TryGetValue("X-Auth-Token", out var xAuthHeader))
-            {
-                return xAuthHeader.ToString();
-            }
-
+            if (headers.TryGetValue("X-Auth-Token", out var xHeader)) return xHeader.ToString();
+            
             return null;
         }
     }
-
-    // Extension method to use the middleware
+    
     public static class AuthMiddlewareExtensions
     {
         public static IApplicationBuilder UseAuthMiddleware(this IApplicationBuilder builder)

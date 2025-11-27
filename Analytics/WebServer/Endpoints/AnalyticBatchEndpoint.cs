@@ -31,7 +31,8 @@ public class AnalyticBatchEndpoint : WebEndpoint
 
     public override string Path => "/api/analytics/batch";
     public override METHOD Method => METHOD.POST;
-
+    public override EndpointSecurity Security => EndpointSecurity.Unity;
+    
     public override Delegate Action => async (HttpContext context) =>
     {
         try

@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using KHSWeb.Models;
 using KHSWeb.Services;
 using Utils;
 

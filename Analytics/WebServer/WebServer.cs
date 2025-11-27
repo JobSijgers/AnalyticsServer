@@ -1,6 +1,6 @@
-﻿// Updated WebServer.cs - Add CORS configuration
-using System.Reflection;
+﻿using System.Reflection;
 using KHSWeb.Middleware;
+using KHSWeb.Services;
 using Utils;
 
 namespace KHSWeb
@@ -68,6 +68,7 @@ namespace KHSWeb
                             app.MapDelete(ep.Path, ep.Action);
                             break;
                     }
+                    RouteSecurityRegistry.RegisterRoute(ep.Path, ep.Security);
                 }
 
                 DebugUtils.Print($"Total endpoints registered: {endpoints.Count()}");
