@@ -1,59 +1,55 @@
-﻿// [file name]: AuthValidationEndpoint.cs
-using Utils;
+﻿using Utils;
 using System.Text.Json;
+using KHSWeb.Models;
 
-namespace KHSWeb.Endpoints
+namespace KHSWeb.Endpoints;
+
+public class AuthValidationEndpoint : WebEndpoint
 {
-    public class AuthValidationEndpoint : WebEndpoint
+    public override string Path => "/api/auth/validate";
+    public override METHOD Method => METHOD.POST;
+    public override EndpointSecurity Security => EndpointSecurity.Public;
+
+    public override Delegate Action => async (HttpContext context) =>
     {
-        public override string Path => "/api/auth/validate";
-        public override METHOD Method => METHOD.POST;
-        public override EndpointSecurity Security => EndpointSecurity.Public;
-        
-        public override Delegate Action => async (HttpContext context) =>
+        try
         {
-            try
+            var requestBody = await new StreamReader(context.Request.Body).ReadToEndAsync();
+            var authRequest = JsonSerializer.Deserialize<AuthValidationRequest>(requestBody, new JsonSerializerOptions
             {
-                var requestBody = await new StreamReader(context.Request.Body).ReadToEndAsync();
-                var authRequest = JsonSerializer.Deserialize<AuthValidationRequest>(requestBody, new JsonSerializerOptions
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (string.IsNullOrEmpty(authRequest?.Token))
+            {
+                return Results.BadRequest(new { success = false, message = "Token is required" });
+            }
+
+            if (TokenManager.IsTokenValid(authRequest.Token))
+            {
+                DebugUtils.PrintSuccess("Token validation successful");
+                return Results.Ok(new
                 {
-                    PropertyNameCaseInsensitive = true
+                    success = true,
+                    message = "Token valid",
+                    valid = true
                 });
-
-                if (string.IsNullOrEmpty(authRequest?.Token))
-                {
-                    return Results.BadRequest(new { success = false, message = "Token is required" });
-                }
-
-                if (TokenManager.IsTokenValid(authRequest.Token))
-                {
-                    DebugUtils.PrintSuccess("Token validation successful");
-                    return Results.Ok(new { 
-                        success = true, 
-                        message = "Token valid",
-                        valid = true
-                    });
-                }
-                else
-                {
-                    DebugUtils.PrintError("Token validation failed");
-                    return Results.Ok(new { 
-                        success = true, 
-                        message = "Token invalid",
-                        valid = false
-                    });
-                }
             }
-            catch (Exception ex)
+            else
             {
-                DebugUtils.PrintError($"Token validation error: {ex.Message}");
-                return Results.Problem($"Token validation error: {ex.Message}");
+                DebugUtils.PrintError("Token validation failed");
+                return Results.Ok(new
+                {
+                    success = true,
+                    message = "Token invalid",
+                    valid = false
+                });
             }
-        };
-    }
-
-    public class AuthValidationRequest
-    {
-        public string Token { get; set; } = string.Empty;
-    }
+        }
+        catch (Exception ex)
+        {
+            DebugUtils.PrintError($"Token validation error: {ex.Message}");
+            return Results.Problem($"Token validation error: {ex.Message}");
+        }
+    };
 }

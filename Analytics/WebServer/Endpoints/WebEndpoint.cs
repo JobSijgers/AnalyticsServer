@@ -4,9 +4,9 @@ namespace KHSWeb
 {
     public enum EndpointSecurity
     {
-        Public,     // Open to everyone (Login, Metric, etc.)
-        Unity,      // Requires Config.UnityClientToken (Batch)
-        AdminOnly   // Requires TokenManager validation (Dashboard, Configs)
+        Public,   
+        Unity,      
+        AdminOnly
     }
 
     public abstract class WebEndpoint

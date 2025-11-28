@@ -1,54 +1,53 @@
-﻿// [file name]: LogoutEndpoint.cs
-using Utils;
-using System.Text.Json;
+﻿using Utils;
 
-namespace KHSWeb.Endpoints
+namespace KHSWeb.Endpoints;
+
+public class LogoutEndpoint : WebEndpoint
 {
-    public class LogoutEndpoint : WebEndpoint
+    public override string Path => "/api/auth/logout";
+    public override METHOD Method => METHOD.POST;
+
+    public override Delegate Action => (HttpContext context) =>
     {
-        public override string Path => "/api/auth/logout";
-        public override METHOD Method => METHOD.POST;
-        public override Delegate Action => (HttpContext context) =>
+        try
         {
-            try
-            {
-                var token = GetTokenFromHeader(context.Request.Headers);
-                
-                if (!string.IsNullOrEmpty(token))
-                {
-                    TokenManager.InvalidateToken(token);
-                    DebugUtils.PrintSuccess("User logged out successfully");
-                }
+            var token = GetTokenFromHeader(context.Request.Headers);
 
-                return Results.Ok(new { 
-                    success = true, 
-                    message = "Logout successful" 
-                });
-            }
-            catch (Exception ex)
+            if (!string.IsNullOrEmpty(token))
             {
-                DebugUtils.PrintError($"Logout error: {ex.Message}");
-                return Results.Problem($"Logout error: {ex.Message}");
-            }
-        };
-
-        private string GetTokenFromHeader(IHeaderDictionary headers)
-        {
-            if (headers.TryGetValue("Authorization", out var authHeader))
-            {
-                var headerValue = authHeader.ToString();
-                if (headerValue.StartsWith("Bearer "))
-                {
-                    return headerValue.Substring(7);
-                }
+                TokenManager.InvalidateToken(token);
+                DebugUtils.PrintSuccess("User logged out successfully");
             }
 
-            if (headers.TryGetValue("X-Auth-Token", out var xAuthHeader))
+            return Results.Ok(new
             {
-                return xAuthHeader.ToString();
-            }
-
-            return null!;
+                success = true,
+                message = "Logout successful"
+            });
         }
+        catch (Exception ex)
+        {
+            DebugUtils.PrintError($"Logout error: {ex.Message}");
+            return Results.Problem($"Logout error: {ex.Message}");
+        }
+    };
+
+    private string GetTokenFromHeader(IHeaderDictionary headers)
+    {
+        if (headers.TryGetValue("Authorization", out var authHeader))
+        {
+            var headerValue = authHeader.ToString();
+            if (headerValue.StartsWith("Bearer "))
+            {
+                return headerValue.Substring(7);
+            }
+        }
+
+        if (headers.TryGetValue("X-Auth-Token", out var xAuthHeader))
+        {
+            return xAuthHeader.ToString();
+        }
+
+        return null!;
     }
 }

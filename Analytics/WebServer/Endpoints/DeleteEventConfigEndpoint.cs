@@ -1,3 +1,4 @@
+using KHSWeb.Models;
 using KHSWeb.Services;
 using Utils;
 
@@ -29,12 +30,7 @@ public class DeleteEventConfigEndpoint : WebEndpoint
                 }, statusCode: 400);
             }
 
-            var allConfigs = await _configService.LoadAllConfigs();
-
-            // Remove the config
-            allConfigs.RemoveAll(c => c.Id == request.Id && c.ProjectId == request.ProjectId);
-
-            await _configService.SaveAllConfigs(allConfigs);
+            await _configService.DeleteConfig(request.Id, request.ProjectId);
 
             return Results.Json(new ApiResponse<object>
             {

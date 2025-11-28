@@ -1,4 +1,5 @@
-﻿using KHSWeb.Services;
+﻿using KHSWeb.Models;
+using KHSWeb.Services;
 using Utils;
 
 namespace KHSWeb.Endpoints;
@@ -29,19 +30,7 @@ public class UpdateEventConfigOrderEndpoint : WebEndpoint
                 }, statusCode: 400);
             }
 
-            var allConfigs = await _configService.LoadAllConfigs();
-
-            foreach (var order in request.Orders)
-            {
-                var config = allConfigs.FirstOrDefault(c => c.Id == order.Id && c.ProjectId == request.ProjectId);
-                if (config != null)
-                {
-                    config.DisplayOrder = order.DisplayOrder;
-                    config.UpdatedAt = DateTime.UtcNow;
-                }
-            }
-
-            await _configService.SaveAllConfigs(allConfigs);
+            await _configService.UpdateConfigOrders(request.ProjectId, request.Orders);
 
             return Results.Json(new ApiResponse<object>
             {

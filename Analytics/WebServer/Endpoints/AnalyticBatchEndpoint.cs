@@ -1,5 +1,4 @@
-﻿using KHSWeb.Models;
-using KHSWeb.Services;
+﻿using KHSWeb.Services;
 using System.Text.Json;
 using Utils;
 using MongoDB.Driver;
@@ -21,8 +20,6 @@ public class AnalyticBatchEndpoint : WebEndpoint
     {
         public List<UnityAnalyticsEvent> events { get; set; } = new List<UnityAnalyticsEvent>();
     }
-
-    private readonly MongoService _mongoService = new();
 
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -93,10 +90,6 @@ public class AnalyticBatchEndpoint : WebEndpoint
         }
     };
 
-    /// <summary>
-    /// Converts JSON string arrays like "[\"value1\",\"value2\"]" to proper List<string> arrays
-    /// Only processes strings that match the exact JSON array pattern
-    /// </summary>
     private Dictionary<string, object> ConvertJsonStringArrays(Dictionary<string, object> properties)
     {
         if (properties == null || properties.Count == 0)
@@ -106,7 +99,6 @@ public class AnalyticBatchEndpoint : WebEndpoint
 
         foreach (var prop in properties)
         {
-            // Only convert if it's a string that looks like a JSON array
             if (prop.Value is string stringValue && IsJsonStringArray(stringValue))
             {
                 processed[prop.Key] = ParseJsonStringArray(stringValue);
@@ -120,9 +112,6 @@ public class AnalyticBatchEndpoint : WebEndpoint
         return processed;
     }
 
-    /// <summary>
-    /// Checks if a string is a JSON array in the format: ["value1","value2"]
-    /// </summary>
     private bool IsJsonStringArray(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -130,36 +119,28 @@ public class AnalyticBatchEndpoint : WebEndpoint
 
         var trimmed = value.Trim();
 
-        // Must start with [" and end with "] - exact pattern from your example
         return trimmed.StartsWith("[\"") &&
                trimmed.EndsWith("\"]") &&
-               trimmed.Length > 4; // Minimum: [" "]
+               trimmed.Length > 4;
     }
 
-    /// <summary>
-    /// Parses JSON string arrays in the format: ["value1","value2","value3"]
-    /// This is optimized for the exact format shown in your example
-    /// </summary>
     private object ParseJsonStringArray(string value)
     {
         try
         {
             var trimmed = value.Trim();
 
-            // Fast path: remove the brackets and split by ","
-            var content = trimmed.Substring(2, trimmed.Length - 4); // Remove [" and "]
+            var content = trimmed.Substring(2, trimmed.Length - 4);
 
             if (string.IsNullOrEmpty(content))
                 return new List<string>();
 
-            // Split by "," and remove any escaped quotes
             var items = content.Split(new[] { "\",\"" }, StringSplitOptions.None);
 
             var result = new List<string>(items.Length);
             foreach (var item in items)
             {
-                // Remove any remaining quotes and unescape
-                var cleaned = item.Replace("\\\"", "\""); // Handle escaped quotes
+                var cleaned = item.Replace("\\\"", "\""); 
                 result.Add(cleaned);
             }
 
@@ -168,7 +149,6 @@ public class AnalyticBatchEndpoint : WebEndpoint
         catch (Exception ex)
         {
             DebugUtils.PrintError($"Failed to parse JSON array: {value}, Error: {ex.Message}");
-            // Return original value if parsing fails
             return value;
         }
     }

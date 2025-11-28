@@ -13,7 +13,6 @@ public class EventKeysEndpoint : WebEndpoint
     {
         try
         {
-            // Read the projectId from the URL (sent by ConfigManager.js)
             var projectId = context.Request.Query["projectId"].ToString();
             
             var database = Config.GetDatabase();
@@ -21,15 +20,12 @@ public class EventKeysEndpoint : WebEndpoint
             
             List<string> keys;
 
-            // --- THE FIX: Handle "GLOBAL" Context ---
             if (projectId == "GLOBAL")
             {
-                // If Global, get distinct keys from the ENTIRE collection
                 keys = await collection.Distinct(x => x.Key, Builders<AnalyticEventDocument>.Filter.Empty).ToListAsync();
             }
             else if (!string.IsNullOrEmpty(projectId))
             {
-                // If Project specific, filter by ProjectId
                 var filter = Builders<AnalyticEventDocument>.Filter.Eq(x => x.ProjectId, projectId);
                 keys = await collection.Distinct(x => x.Key, filter).ToListAsync();
             }

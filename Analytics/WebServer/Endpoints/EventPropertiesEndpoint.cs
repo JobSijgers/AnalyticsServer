@@ -1,12 +1,10 @@
 ﻿using KHSWeb.Models;
 using MongoDB.Driver;
-using Utils;
 
 namespace KHSWeb.Endpoints;
 
 public class EventPropertiesEndpoint : WebEndpoint
 {
-    // Keeping the original path used by Project Page
     public override string Path => "/api/events/properties";
     public override METHOD Method => METHOD.GET;
 
@@ -25,20 +23,14 @@ public class EventPropertiesEndpoint : WebEndpoint
             var database = Config.GetDatabase();
             var collection = database.GetCollection<AnalyticEventDocument>(Config.MetricsCollectionName);
             
-            // 1. Filter by Event Key
             var filterBuilder = Builders<AnalyticEventDocument>.Filter;
             var filter = filterBuilder.Eq(x => x.Key, eventKey);
 
-            // 2. Filter by Project (ONLY if not GLOBAL)
-            // If GLOBAL, we skip this line, effectively searching ALL projects
             if (projectId != "GLOBAL")
             {
                 filter = filterBuilder.And(filter, filterBuilder.Eq(x => x.ProjectId, projectId));
             }
 
-            // 3. Scan recent events to find Property Keys
-            // We limit to 50 to keep it fast. 
-            // This works for both single projects and global views.
             var recentEvents = await collection.Find(filter)
                 .SortByDescending(x => x.Timestamp)
                 .Limit(50)

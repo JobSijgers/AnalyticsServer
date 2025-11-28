@@ -50,20 +50,17 @@ public class CustomChartDataEndpoint : WebEndpoint
                 cacheFilePath = System.IO.Path.Combine(CacheDirectory, cacheFileName);
             }
 
-            // 1. Check if cache is requested and exists
             if (useCache && !string.IsNullOrEmpty(cacheFilePath) && File.Exists(cacheFilePath))
             {
                 var cachedJson = await File.ReadAllTextAsync(cacheFilePath);
                 return Results.Text(cachedJson, "application/json");
             }
 
-            // 2. Check if cache is requested but missing (Return 204 to trigger fresh fetch)
             if (useCache && !string.IsNullOrEmpty(cacheFilePath) && !File.Exists(cacheFilePath))
             {
                 return Results.NoContent();
             }
 
-            // 3. Fetch fresh data using shared service
             var chartData = await _chartDataService.ProcessChartData(projectId, eventKey, propertyName, chartType, days, filtersJson);
 
             var response = new ApiResponse<ChartDataResponse>
@@ -72,7 +69,6 @@ public class CustomChartDataEndpoint : WebEndpoint
                 Data = new ChartDataResponse { ChartData = chartData }
             };
 
-            // 4. Save to cache if we have a valid configId
             if (!string.IsNullOrEmpty(cacheFilePath))
             {
                 var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
