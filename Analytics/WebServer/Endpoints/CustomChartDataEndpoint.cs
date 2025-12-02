@@ -1,7 +1,7 @@
 ﻿using KHSWeb.Models;
 using KHSWeb.Services;
 using Utils;
-using System.Text.Json;
+using MongoDB.Bson; // Added for BsonTypeMapper
 
 namespace KHSWeb.Endpoints;
 
@@ -11,18 +11,8 @@ public class CustomChartDataEndpoint : WebEndpoint
     public override METHOD Method => METHOD.GET;
     public override EndpointSecurity Security => EndpointSecurity.Public;
     
-    private static readonly string CacheDirectory = System.IO.Path.Combine(System.AppContext.BaseDirectory, "Data", "Cache");
-    private readonly ChartDataService _chartDataService;
-
-    public CustomChartDataEndpoint()
-    {
-        _chartDataService = new ChartDataService();
-
-        if (!Directory.Exists(CacheDirectory))
-        {
-            Directory.CreateDirectory(CacheDirectory);
-        }
-    }
+    private readonly ChartDataService _chartDataService = new();
+    private readonly ChartCacheService _cacheService = new();
 
     public override Delegate Action => async (HttpContext context) =>
     {
@@ -42,41 +32,48 @@ public class CustomChartDataEndpoint : WebEndpoint
                 return Results.Json(new ApiResponse<ChartDataResponse> { Success = false, Message = "Required fields missing" }, statusCode: 400);
             }
 
-            string cacheFilePath = null!;
-            if (!string.IsNullOrEmpty(configId))
+            if (useCache && !string.IsNullOrEmpty(configId))
             {
-                var safeConfigId = string.Join("_", configId.Split(System.IO.Path.GetInvalidFileNameChars()));
-                var cacheFileName = $"chart_{safeConfigId}_{days}.json";
-                cacheFilePath = System.IO.Path.Combine(CacheDirectory, cacheFileName);
-            }
+                var cachedDoc = await _cacheService.GetCachedDataAsync(configId, days);
 
-            if (useCache && !string.IsNullOrEmpty(cacheFilePath) && File.Exists(cacheFilePath))
-            {
-                var cachedJson = await File.ReadAllTextAsync(cacheFilePath);
-                return Results.Text(cachedJson, "application/json");
-            }
+                if (cachedDoc != null)
+                {
+                    var cleanData = BsonTypeMapper.MapToDotNetValue(cachedDoc.Data);
 
-            if (useCache && !string.IsNullOrEmpty(cacheFilePath) && !File.Exists(cacheFilePath))
-            {
-                return Results.NoContent();
+                    return Results.Json(new ApiResponse<ChartDataResponse>
+                    {
+                        Success = true,
+                        Data = new ChartDataResponse { ChartData = cleanData }
+                    });
+                }
+                else
+                {
+                    return Results.NoContent();
+                }
             }
 
             var chartData = await _chartDataService.ProcessChartData(projectId, eventKey, propertyName, chartType, days, filtersJson);
 
-            var response = new ApiResponse<ChartDataResponse>
+            if (!string.IsNullOrEmpty(configId))
+            {
+                _ = Task.Run(async () => 
+                {
+                    try
+                    {
+                        await _cacheService.CacheChartDataAsync(configId, days, chartData);
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugUtils.PrintError($"Failed to background cache chart {configId}: {ex.Message}");
+                    }
+                });
+            }
+
+            return Results.Json(new ApiResponse<ChartDataResponse>
             {
                 Success = true,
                 Data = new ChartDataResponse { ChartData = chartData }
-            };
-
-            if (!string.IsNullOrEmpty(cacheFilePath))
-            {
-                var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-                var jsonString = JsonSerializer.Serialize(response, jsonOptions);
-                await File.WriteAllTextAsync(cacheFilePath, jsonString);
-            }
-
-            return Results.Json(response);
+            });
         }
         catch (Exception ex)
         {

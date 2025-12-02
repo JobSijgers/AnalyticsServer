@@ -64,7 +64,7 @@ class BaseDashboard {
     }
 
     copyMetricLink(chartId) {
-        const url = `${this.baseUrl}/public/metric?id=${chartId}`;
+        const url = `${window.location.origin}${this.baseUrl}/public/metric?id=${chartId}`;
         navigator.clipboard.writeText(url).then(() => {
             if (typeof toastManager !== 'undefined') {
                 toastManager.success('Link copied to clipboard');

@@ -1,5 +1,7 @@
 ﻿using MongoDB.Driver;
-using KHSWeb.Models; // Added for EventDisplayConfig
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+using KHSWeb.Models;
 using Utils;
 
 namespace KHSWeb.Services
@@ -17,7 +19,20 @@ namespace KHSWeb.Services
             _chartDataService = new ChartDataService();
         }
 
-        // New method that encapsulates the full generation process
+        public async Task<CachedChartDocument?> GetCachedDataAsync(string configId, int days)
+        {
+            try
+            {
+                var id = $"{configId}_{days}";
+                return await _cache.Find(x => x.Id == id).FirstOrDefaultAsync();
+            }
+            catch (Exception ex)
+            {
+                DebugUtils.PrintError($"Error retrieving cache for {configId}: {ex.Message}");
+                return null;
+            }
+        }
+
         public async Task GenerateCacheForConfigAsync(EventDisplayConfig config)
         {
             try
@@ -56,12 +71,16 @@ namespace KHSWeb.Services
             try
             {
                 var id = $"{configId}_{days}";
+                
+                // Convert the object to a BsonDocument for reliable storage/retrieval
+                var bsonData = chartData.ToBsonDocument();
+
                 var document = new CachedChartDocument
                 {
                     Id = id,
                     ConfigId = configId,
                     Days = days,
-                    Data = chartData,
+                    Data = bsonData,
                     UpdatedAt = DateTime.UtcNow
                 };
 
@@ -99,10 +118,14 @@ namespace KHSWeb.Services
 
     public class CachedChartDocument
     {
+        [BsonId]
         public string Id { get; set; } = string.Empty;
         public string ConfigId { get; set; } = string.Empty;
         public int Days { get; set; }
-        public object Data { get; set; } = new();
+        
+        // Storing as BsonDocument allows us to easily convert back to JSON 
+        // without worrying about losing structure during object deserialization
+        public BsonDocument Data { get; set; } = new();
         public DateTime UpdatedAt { get; set; }
     }
 }

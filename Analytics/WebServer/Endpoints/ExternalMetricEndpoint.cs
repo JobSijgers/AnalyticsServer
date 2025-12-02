@@ -1,16 +1,24 @@
 ﻿using System.Text.Json;
+using KHSWeb.Services;
 using Utils;
+using MongoDB.Bson;
+using MongoDB.Bson.IO;
 
 namespace KHSWeb.Endpoints;
 
 public class ExternalMetricEndpoint : WebEndpoint
 {
+    private readonly ChartCacheService _cacheService;
+
+    public ExternalMetricEndpoint()
+    {
+        _cacheService = new ChartCacheService();
+    }
+
     public override string Path => "/api/public/metric";
     public override METHOD Method => METHOD.GET;
 
     public override EndpointSecurity Security => EndpointSecurity.Public;
-
-    private static readonly string CacheDirectory = System.IO.Path.Combine(System.AppContext.BaseDirectory, "Data", "Cache");
 
     public override Delegate Action => async (HttpContext context) =>
     {
@@ -25,23 +33,33 @@ public class ExternalMetricEndpoint : WebEndpoint
                 return Results.Json(new { error = "Missing 'id' parameter" }, statusCode: 400);
             }
 
-            var safeConfigId = string.Join("_", configId.Split(System.IO.Path.GetInvalidFileNameChars()));
-            var cacheFileName = $"chart_{safeConfigId}_{days}.json";
-            var cacheFilePath = System.IO.Path.Combine(CacheDirectory, cacheFileName);
+            // 1. Fetch from Database instead of File
+            var cachedDoc = await _cacheService.GetCachedDataAsync(configId, days);
 
-            if (!File.Exists(cacheFilePath))
+            if (cachedDoc == null || cachedDoc.Data == null)
             {
                 return Results.Json(new { error = "Data not found or not yet cached." }, statusCode: 404);
             }
 
-            var jsonString = await File.ReadAllTextAsync(cacheFilePath);
+            // 2. Convert BsonDocument to JSON String (Relaxed mode prevents $numberDouble format)
+            var jsonSettings = new JsonWriterSettings { OutputMode = JsonOutputMode.RelaxedExtendedJson };
+            var jsonString = cachedDoc.Data.ToJson(jsonSettings);
+
+            // 3. Parse JSON to traverse
             using var doc = JsonDocument.Parse(jsonString);
             
-            if (!doc.RootElement.TryGetProperty("data", out var dataElem) ||
-                !dataElem.TryGetProperty("chartData", out var chartDataElem) ||
-                !chartDataElem.TryGetProperty("data", out var innerData))
+            // Note: The previous file structure was ApiResponse > ChartDataResponse > Data
+            // The DB stores the inner Data object directly. We just need to find the "data" property inside it.
+            if (!doc.RootElement.TryGetProperty("data", out var innerData))
             {
-                return Results.Json(new { error = "Invalid cache format" }, statusCode: 500);
+                 // Fallback: If the root is the array itself (depending on chart type)
+                 innerData = doc.RootElement;
+                 
+                 // If it's an object but missing 'data' property, maybe it's the data itself?
+                 if (innerData.ValueKind == JsonValueKind.Object && !innerData.TryGetProperty("data", out _))
+                 {
+                     // Keep innerData as RootElement
+                 }
             }
 
             double resultValue = 0;
@@ -50,15 +68,15 @@ public class ExternalMetricEndpoint : WebEndpoint
             {
                 if (!string.IsNullOrEmpty(targetField) && innerData.TryGetProperty(targetField, out var specificVal))
                 {
-                    resultValue = specificVal.GetDouble();
+                    resultValue = GetDoubleValue(specificVal);
                 }
-                else if (innerData.TryGetProperty("sumValue", out var sumVal) && sumVal.GetDouble() > 0)
+                else if (innerData.TryGetProperty("sumValue", out var sumVal) && GetDoubleValue(sumVal) > 0)
                 {
-                    resultValue = sumVal.GetDouble();
+                    resultValue = GetDoubleValue(sumVal);
                 }
                 else if (innerData.TryGetProperty("total", out var totalVal))
                 {
-                    resultValue = totalVal.GetDouble();
+                    resultValue = GetDoubleValue(totalVal);
                 }
             }
             else if (innerData.ValueKind == JsonValueKind.Array)
@@ -67,11 +85,11 @@ public class ExternalMetricEndpoint : WebEndpoint
                 {
                     if (item.TryGetProperty("value", out var val))
                     {
-                        resultValue += val.GetDouble();
+                        resultValue += GetDoubleValue(val);
                     }
                     else if (item.TryGetProperty("count", out var count))
                     {
-                        resultValue += count.GetDouble();
+                        resultValue += GetDoubleValue(count);
                     }
                 }
             }
@@ -84,7 +102,17 @@ public class ExternalMetricEndpoint : WebEndpoint
         }
         catch (Exception ex)
         {
+            DebugUtils.PrintError($"Error in ExternalMetricEndpoint: {ex.Message}");
             return Results.Json(new { error = ex.Message }, statusCode: 500);
         }
     };
+
+    private double GetDoubleValue(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Number)
+            return element.GetDouble();
+        if (element.ValueKind == JsonValueKind.String && double.TryParse(element.GetString(), out double val))
+            return val;
+        return 0;
+    }
 }
