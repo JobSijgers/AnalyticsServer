@@ -122,22 +122,29 @@ class ChartManager {
         } else {
             const dataArray = chartData.data || [];
             const hasData = dataArray.length > 0;
+
+            // Smart Detection: Check if data is truly multi-series (time series)
+            // This handles cases where backend sends time-series but forgets the 'multiLine' type flag
+            const isActuallyMultiSeries = chartData.type === 'multiLine' ||
+                (hasData && dataArray[0].hasOwnProperty('data') && Array.isArray(dataArray[0].data));
+
             let isMeaningful = false;
             const safeType = (chartType === 'AreaChart') ? 'LineChart' : chartType;
+
             if (hasData) {
-                if (safeType === 'LineChart' || safeType === 'StackedBarChart') {
-                    if (chartData.type === 'multiLine') {
+                if (safeType === 'LineChart' || (safeType === 'StackedBarChart' && isActuallyMultiSeries)) {
+                    if (isActuallyMultiSeries) {
                         isMeaningful = dataArray.some(series => series.data && series.data.length > 0 && series.data.some(p => p.value > 0 || p.count > 0));
                     } else {
                         const valueField = dataArray.some(item => item.value !== undefined && item.value !== 0) ? 'value' : 'count';
                         isMeaningful = dataArray.some(item => item[valueField] > 0);
                     }
                 } else {
-                    isMeaningful = dataArray.some(item => item.value > 0);
+                    isMeaningful = dataArray.some(item => item.value > 0 || item.count > 0);
                 }
             }
             if (isMeaningful) {
-                this.renderChartJsChart(ctx, chartData, safeType, canvasId);
+                this.renderChartJsChart(ctx, chartData, safeType, canvasId, config, isActuallyMultiSeries);
             } else {
                 ctx.font = '16px Arial';
                 ctx.fillStyle = '#aaa';
@@ -176,9 +183,34 @@ class ChartManager {
         ctx.fillText(labelToDisplay, width / 2, height / 2 + 30);
     }
 
-    renderChartJsChart(ctx, chartData, chartType, canvasId) {
+    renderChartJsChart(ctx, chartData, chartType, canvasId, config, forceMultiSeries = false) {
+        // Handle LineChart integer series fix
+        if (chartType === 'LineChart' && (chartData.type === 'multiLine' || forceMultiSeries) && chartData.data && chartData.data.length > 0) {
+            const isIntegerSeries = chartData.data.every(s => s.label && /^-?\d+$/.test(s.label));
+            if (isIntegerSeries) {
+                const aggregated = {};
+                chartData.data.forEach(series => {
+                    const factor = parseInt(series.label, 10);
+                    if (!isNaN(factor) && series.data) {
+                        series.data.forEach(p => {
+                            const date = p.date;
+                            const count = p.count !== undefined ? p.count : (p.value || 0);
+                            if (!aggregated[date]) aggregated[date] = 0;
+                            aggregated[date] += factor * count;
+                        });
+                    }
+                });
+                chartData.data = Object.keys(aggregated).sort((a, b) => new Date(a) - new Date(b)).map(d => ({
+                    date: d,
+                    value: aggregated[d]
+                }));
+                chartData.type = 'line';
+                forceMultiSeries = false; // It is now flat
+            }
+        }
+
         let chartConfig;
-        const isMultiSeries = chartData.type === 'multiLine';
+        const isMultiSeries = forceMultiSeries || chartData.type === 'multiLine';
         if (chartType === 'AreaChart') chartType = 'LineChart';
 
         const dateRangeSelect = document.getElementById('date-range');
@@ -188,6 +220,7 @@ class ChartManager {
         let compressionFactor = 1;
 
         if (chartType === 'LineChart' || (chartType === 'StackedBarChart' && isMultiSeries)) {
+            // --- TIME SERIES / MULTI-SERIES DATA HANDLING ---
             if (isMultiSeries) {
                 const seriesData = chartData.data || [];
                 const colors = this.generateChartColors(seriesData.length);
@@ -203,35 +236,28 @@ class ChartManager {
                     const compressedLabels = [];
                     const compressedDatasets = seriesData.map(series => {
                         const compressedData = [];
-
                         for (let i = 0; i < series.data.length; i += compressionFactor) {
                             const chunk = series.data.slice(i, i + compressionFactor);
                             const sum = chunk.reduce((total, item) => total + (item.value || item.count || 0), 0);
                             const average = chunk.length > 0 ? Math.round(sum / chunk.length) : 0;
                             compressedData.push(average);
-
                             if (chunk.length > 0) {
                                 if (chunk.length === 1) {
                                     compressedLabels.push(chunk[0].date);
                                 } else {
                                     const firstDate = chunk[0].date;
                                     const lastDate = chunk[chunk.length - 1].date;
-                                    if (firstDate === lastDate) {
-                                        compressedLabels.push(firstDate);
-                                    } else {
-                                        compressedLabels.push(`${firstDate} - ${lastDate}`);
-                                    }
+                                    compressedLabels.push(firstDate === lastDate ? firstDate : `${firstDate} - ${lastDate}`);
                                 }
                             }
                         }
-
                         return compressedData;
                     });
-
                     labels = compressedLabels;
 
                     const isStackedBar = chartType === 'StackedBarChart';
                     const mainType = isStackedBar ? 'bar' : 'line';
+
                     const datasets = seriesData.map((series, index) => ({
                         label: series.label,
                         data: compressedDatasets[index] || [],
@@ -253,26 +279,7 @@ class ChartManager {
                             interaction: { mode: 'index', intersect: false },
                             plugins: {
                                 legend: { display: true, labels: { color: '#eee', boxWidth: 10 } },
-                                tooltip: {
-                                    mode: 'index',
-                                    intersect: false,
-                                    callbacks: {
-                                        title: (context) => {
-                                            const label = context[0].label;
-                                            if (label.includes(' - ')) {
-                                                return `${label} (period average)`;
-                                            }
-                                            return isCompressed ? `${label} (average)` : label;
-                                        },
-                                        label: (context) => {
-                                            const label = context.dataset.label || '';
-                                            const value = context.parsed.y;
-                                            return isCompressed ?
-                                                `${label}: ${value} (avg)` :
-                                                `${label}: ${value}`;
-                                        }
-                                    }
-                                }
+                                tooltip: { mode: 'index', intersect: false }
                             },
                             scales: {
                                 y: {
@@ -285,10 +292,7 @@ class ChartManager {
                                     type: 'category',
                                     stacked: isStackedBar,
                                     grid: { color: 'rgba(255,255,255,0.1)' },
-                                    ticks: {
-                                        color: '#eee',
-                                        maxTicksLimit: Math.min(15, labels.length)
-                                    }
+                                    ticks: { color: '#eee', maxTicksLimit: Math.min(15, labels.length) }
                                 }
                             }
                         }
@@ -336,6 +340,7 @@ class ChartManager {
                     };
                 }
             } else {
+                // Single Line Chart (Compressed logic)
                 let labels = chartData.data?.map(item => item.date || item.label || item.key) || [];
                 let dataValues = chartData.data?.map(item => item.value !== undefined ? item.value : (item.count || 0)) || [];
                 const labelText = 'Event Count';
@@ -350,7 +355,6 @@ class ChartManager {
                     for (let i = 0; i < labels.length; i += compressionFactor) {
                         const dataChunk = dataValues.slice(i, i + compressionFactor);
                         const labelChunk = labels.slice(i, i + compressionFactor);
-
                         const averageValue = dataChunk.reduce((sum, val) => sum + val, 0) / dataChunk.length;
                         compressedData.push(Math.round(averageValue));
 
@@ -360,15 +364,10 @@ class ChartManager {
                             } else {
                                 const firstLabel = labelChunk[0];
                                 const lastLabel = labelChunk[labelChunk.length - 1];
-                                if (firstLabel === lastLabel) {
-                                    compressedLabels.push(firstLabel);
-                                } else {
-                                    compressedLabels.push(`${firstLabel} - ${lastLabel}`);
-                                }
+                                compressedLabels.push(firstLabel === lastLabel ? firstLabel : `${firstLabel} - ${lastLabel}`);
                             }
                         }
                     }
-
                     labels = compressedLabels;
                     dataValues = compressedData;
                 }
@@ -398,63 +397,96 @@ class ChartManager {
                                 callbacks: {
                                     title: (context) => {
                                         const label = context[0].label;
-                                        if (label.includes(' - ')) {
-                                            return `${label} (period average)`;
-                                        }
+                                        if (label.includes(' - ')) return `${label} (period average)`;
                                         return isCompressed ? `${label} (average)` : label;
                                     },
                                     label: (context) => {
                                         const value = context.parsed.y;
-                                        return isCompressed ?
-                                            `${labelText}: ${value} (avg)` :
-                                            `${labelText}: ${value}`;
+                                        return isCompressed ? `${labelText}: ${value} (avg)` : `${labelText}: ${value}`;
                                     }
                                 }
                             }
                         },
                         scales: {
-                            y: {
-                                beginAtZero: true,
-                                grid: { color: 'rgba(255,255,255,0.1)' },
-                                ticks: { color: '#eee' }
-                            },
-                            x: {
-                                type: 'category',
-                                grid: { color: 'rgba(255,255,255,0.1)' },
-                                ticks: {
-                                    color: '#eee',
-                                    maxTicksLimit: Math.min(15, labels.length)
-                                }
-                            }
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#eee' } },
+                            x: { type: 'category', grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#eee', maxTicksLimit: Math.min(15, labels.length) } }
                         }
                     }
                 };
             }
         } else {
-            const labels = chartData.data?.map(item => item.label || item.key || item.date) || [];
-            const values = chartData.data?.map(item => item.value !== undefined ? item.value : (item.count || 0)) || [];
-            chartConfig = {
-                type: (chartType === 'StackedBarChart') ? 'bar' : chartType.toLowerCase().replace('chart', ''),
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Count',
-                        data: values,
-                        backgroundColor: this.generateChartColors(values.length),
-                        borderColor: '#2a2a2a',
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: (chartType === 'BarChart' || chartType === 'StackedBarChart') ? {
-                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#eee' } },
-                        x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#eee' } }
-                    } : { y: { display: false }, x: { display: false } }
-                }
-            };
+            // --- SIMPLE CATEGORICAL DATA HANDLING ---
+            // If code reaches here, the data DEFINITELY has no dates, just totals.
+            const rawData = chartData.data || [];
+
+            if (chartType === 'StackedBarChart') {
+                // Force "Stacked" look for totals:
+                // Creates a single column (or multiple if configured differently) showing the breakdown.
+                // Since there are no dates, we can only stack the categories themselves.
+                const colors = this.generateChartColors(rawData.length);
+                const datasets = rawData.map((item, index) => ({
+                    label: item.label || item.key || item.date,
+                    data: [item.value !== undefined ? item.value : (item.count || 0)],
+                    backgroundColor: colors[index],
+                    borderColor: '#2a2a2a',
+                    borderWidth: 2
+                }));
+
+                chartConfig = {
+                    type: 'bar',
+                    data: {
+                        labels: [config?.propertyToDisplay || 'Total Distribution'],
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true, position: 'right', labels: { color: '#eee', boxWidth: 10 } }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                stacked: true,
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: '#eee' }
+                            },
+                            x: {
+                                stacked: true,
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: '#eee' }
+                            }
+                        }
+                    }
+                };
+            } else {
+                // Standard Side-by-Side Bar Chart
+                const labels = rawData.map(item => item.label || item.key || item.date);
+                const values = rawData.map(item => item.value !== undefined ? item.value : (item.count || 0));
+
+                chartConfig = {
+                    type: (chartType === 'BarChart') ? 'bar' : chartType.toLowerCase().replace('chart', ''),
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Count',
+                            data: values,
+                            backgroundColor: this.generateChartColors(values.length),
+                            borderColor: '#2a2a2a',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: (chartType === 'BarChart') ? {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#eee' } },
+                            x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#eee' } }
+                        } : { y: { display: false }, x: { display: false } }
+                    }
+                };
+            }
         }
         this.activeCharts[canvasId] = new Chart(ctx, chartConfig);
     }

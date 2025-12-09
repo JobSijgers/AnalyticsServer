@@ -124,10 +124,9 @@ public class ChartDataService
                 return await ProcessLineChartAggregation(collection, finalFilter, propertyName, days, projectId, isEmptyProperty);
             
             case "stackedbarchart":
-                if (projectId == "GLOBAL")
-                    return await ProcessLineChartAggregation(collection, finalFilter, propertyName, days, projectId, isEmptyProperty);
-                else
-                    return await ProcessBarChartAggregation(collection, finalFilter, propertyName, projectId, isEmptyProperty);
+                // FIX: Always use LineChartAggregation (Time-Series) for StackedBarChart
+                // This ensures we get data grouped by DATE, which allows stacking over time.
+                return await ProcessLineChartAggregation(collection, finalFilter, propertyName, days, projectId, isEmptyProperty);
             
             case "barchart":
                 return await ProcessBarChartAggregation(collection, finalFilter, propertyName, projectId, isEmptyProperty);
