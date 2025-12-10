@@ -1,8 +1,6 @@
 ﻿using KHSWeb;
 using Utils;
-using KHSWeb.Background;
 using KHSWeb.Services;
-using Microsoft.Extensions.Hosting;
 
 namespace KHS;
 
