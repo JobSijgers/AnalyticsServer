@@ -2,7 +2,7 @@
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 
-namespace KHSWeb.Models;
+namespace KHSWeb.Serializers;
 
 public class DictionarySerializer : IBsonSerializer<Dictionary<string, object>>
 {

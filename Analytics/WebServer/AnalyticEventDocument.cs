@@ -1,4 +1,5 @@
-﻿// In your AnalyticEventDocument class
+﻿namespace KHSWeb;
+
 public class AnalyticEventDocument
 {
     public string Id { get; set; } = MongoDB.Bson.ObjectId.GenerateNewId().ToString();

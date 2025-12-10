@@ -1,24 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
+using KHSWeb.Endpoints;
 
-namespace KHSWeb.Services
+namespace KHSWeb;
+
+public static class RouteSecurityRegistry
 {
-    public static class RouteSecurityRegistry
+    private static readonly Dictionary<string, EndpointSecurity> _routeSecurity = new(StringComparer.OrdinalIgnoreCase);
+
+    public static void RegisterRoute(string path, EndpointSecurity security)
     {
-        private static readonly Dictionary<string, EndpointSecurity> _routeSecurity = new(StringComparer.OrdinalIgnoreCase);
+        _routeSecurity[path] = security;
+    }
 
-        public static void RegisterRoute(string path, EndpointSecurity security)
+    public static EndpointSecurity? GetSecurityLevel(string path)
+    {
+        if (_routeSecurity.TryGetValue(path, out var security))
         {
-            _routeSecurity[path] = security;
+            return security;
         }
 
-        public static EndpointSecurity? GetSecurityLevel(string path)
-        {
-            if (_routeSecurity.TryGetValue(path, out var security))
-            {
-                return security;
-            }
-            return null;
-        }
+        return null;
     }
 }

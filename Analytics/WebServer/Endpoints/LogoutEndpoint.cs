@@ -1,4 +1,5 @@
-﻿using Utils;
+﻿using KHSWeb.Tokens;
+using Utils;
 
 namespace KHSWeb.Endpoints;
 

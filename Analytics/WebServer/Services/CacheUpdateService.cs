@@ -2,7 +2,7 @@
 using KHSWeb.Services;
 using Utils;
 
-namespace KHSWeb.Background;
+namespace KHSWeb.Services;
 
 public class CacheUpdateService : BackgroundService
 {

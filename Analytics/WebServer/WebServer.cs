@@ -1,83 +1,84 @@
 ﻿using System.Reflection;
+using KHSWeb.Endpoints;
 using KHSWeb.Middleware;
 using KHSWeb.Services;
 using Utils;
 
-namespace KHSWeb
+namespace KHSWeb;
+
+public class WebServer
 {
-    public class WebServer
+    private WebApplication _app = null!;
+
+    public WebServer()
     {
-        private WebApplication _app = null!;
+        CreateApp();
+    }
 
-        public WebServer()
-        {
-            CreateApp();
-        }
+    ~WebServer()
+    {
+        _app?.StopAsync();
+    }
 
-        ~WebServer()
+    public void CreateApp()
+    {
+        _ = Task.Run(() =>
         {
-            _app?.StopAsync();
-        }
+            DebugUtils.Print("Initializing web application builder");
+            var builder = WebApplication.CreateBuilder();
 
-        public void CreateApp()
-        {
-            _ = Task.Run(() =>
+            // Add CORS services
+            builder.Services.AddCors(options =>
             {
-                DebugUtils.Print("Initializing web application builder");
-                var builder = WebApplication.CreateBuilder();
-        
-                // Add CORS services
-                builder.Services.AddCors(options =>
+                options.AddPolicy("AllowAll", policy =>
                 {
-                    options.AddPolicy("AllowAll", policy =>
-                    {
-                        policy.AllowAnyOrigin()
-                            .AllowAnyMethod()
-                            .AllowAnyHeader();
-                    });
+                    policy.AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader();
                 });
+            });
 
-                var app = builder.Build();
+            var app = builder.Build();
 
-                // Use CORS
-                app.UseCors("AllowAll");
-                
-                app.UseDefaultFiles();
-                app.UseStaticFiles();
-                DebugUtils.Print("Static files and default files");
+            // Use CORS
+            app.UseCors("AllowAll");
 
-                app.UseAuthMiddleware();    
-                DebugUtils.Print("Scanning for WebEndpoint implementations");
-                IEnumerable<WebEndpoint?> endpoints = Assembly.GetExecutingAssembly()
-                    .GetTypes()
-                    .Where(t => t.IsSubclassOf(typeof(WebEndpoint)) && !t.IsAbstract)
-                    .Select(t => Activator.CreateInstance(t) as WebEndpoint);
+            app.UseDefaultFiles();
+            app.UseStaticFiles();
+            DebugUtils.Print("Static files and default files");
 
-                foreach (var ep in endpoints)
+            app.UseAuthMiddleware();
+            DebugUtils.Print("Scanning for WebEndpoint implementations");
+            IEnumerable<WebEndpoint?> endpoints = Assembly.GetExecutingAssembly()
+                .GetTypes()
+                .Where(t => t.IsSubclassOf(typeof(WebEndpoint)) && !t.IsAbstract)
+                .Select(t => Activator.CreateInstance(t) as WebEndpoint);
+
+            foreach (var ep in endpoints)
+            {
+                DebugUtils.Print($"Registering endpoint: {ep!.Method} {ep.Path} -> {ep.GetType().FullName}");
+                switch (ep.Method)
                 {
-                    DebugUtils.Print($"Registering endpoint: {ep!.Method} {ep.Path} -> {ep.GetType().FullName}");
-                    switch (ep.Method)
-                    {
-                        case WebEndpoint.METHOD.GET:
-                            app.MapGet(ep.Path, ep.Action);
-                            break;
-                        case WebEndpoint.METHOD.POST:
-                            app.MapPost(ep.Path, ep.Action);
-                            break;
-                        case WebEndpoint.METHOD.DELETE:
-                            app.MapDelete(ep.Path, ep.Action);
-                            break;
-                    }
-                    RouteSecurityRegistry.RegisterRoute(ep.Path, ep.Security);
+                    case WebEndpoint.METHOD.GET:
+                        app.MapGet(ep.Path, ep.Action);
+                        break;
+                    case WebEndpoint.METHOD.POST:
+                        app.MapPost(ep.Path, ep.Action);
+                        break;
+                    case WebEndpoint.METHOD.DELETE:
+                        app.MapDelete(ep.Path, ep.Action);
+                        break;
                 }
 
-                DebugUtils.Print($"Total endpoints registered: {endpoints.Count()}");
+                RouteSecurityRegistry.RegisterRoute(ep.Path, ep.Security);
+            }
 
-                _app = app;
-                app.Run(Config.AppUrl);
+            DebugUtils.Print($"Total endpoints registered: {endpoints.Count()}");
 
-                DebugUtils.Print($"Web server started and listening on {Config.AppUrl}");
-            });
-        }
+            _app = app;
+            app.Run(Config.AppUrl);
+
+            DebugUtils.Print($"Web server started and listening on {Config.AppUrl}");
+        });
     }
 }

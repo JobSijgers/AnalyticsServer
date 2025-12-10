@@ -1,4 +1,4 @@
-﻿namespace KHSWeb.Endpoints;
+﻿namespace KHSWeb.Models;
 
 public class FilterCondition
 {

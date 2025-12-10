@@ -1,27 +1,26 @@
 ﻿using System;
 
-namespace KHSWeb
+namespace KHSWeb.Endpoints;
+
+public enum EndpointSecurity
 {
-    public enum EndpointSecurity
+    Public,
+    Unity,
+    AdminOnly
+}
+
+public abstract class WebEndpoint
+{
+    public enum METHOD
     {
-        Public,   
-        Unity,      
-        AdminOnly
+        GET,
+        POST,
+        DELETE
     }
 
-    public abstract class WebEndpoint
-    {
-        public enum METHOD
-        {
-            GET,
-            POST,
-            DELETE
-        }
+    public abstract string Path { get; }
+    public abstract METHOD Method { get; }
+    public abstract Delegate Action { get; }
 
-        public abstract string Path { get; }
-        public abstract METHOD Method { get; }
-        public abstract Delegate Action { get; }
-
-        public virtual EndpointSecurity Security => EndpointSecurity.AdminOnly;
-    }
+    public virtual EndpointSecurity Security => EndpointSecurity.AdminOnly;
 }

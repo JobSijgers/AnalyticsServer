@@ -1,82 +1,98 @@
 ﻿using KHSWeb;
 using Utils;
 using KHSWeb.Background;
-using KHSWeb.Services; // Required for CacheUpdateService
-using Microsoft.Extensions.Hosting; // Required for StartAsync/StopAsync
+using KHSWeb.Services;
+using Microsoft.Extensions.Hosting;
 
-namespace KHS
+namespace KHS;
+
+class Program
 {
-    class Program
+    private static readonly CancellationTokenSource _cts = new();
+    private static CacheUpdateService _cacheService = null!;
+
+    static async Task Main(string[] args)
     {
-        private static readonly CancellationTokenSource _cts = new();
-        private static CacheUpdateService _cacheService = null!;
+        DebugUtils.SetPrintLevel(DebugUtils.PRINT_LEVEL.ALL);
+        DebugUtils.SetPrintCollections(true);
 
-        static async Task Main(string[] args)
+        var webServer = new WebServer();
+        await TestMongoConnection();
+        new MongoService().EnsureIndexesAsync().Wait();
+
+        try
         {
-            DebugUtils.SetPrintLevel(DebugUtils.PRINT_LEVEL.ALL);
-            DebugUtils.SetPrintCollections(true);
+            DebugUtils.Print("Starting Services...");
 
-            var webServer = new WebServer();
-            await TestMongoConnection();
-            new MongoService().EnsureIndexesAsync().Wait();
+            // Start Cache Service
+            _cacheService = new CacheUpdateService();
+            await _cacheService.StartAsync(_cts.Token);
+            DebugUtils.PrintSuccess("Cache Update Service started.");
 
-            try
-            {
-                DebugUtils.Print("Starting Cache Update Service...");
-                _cacheService = new CacheUpdateService();
-                await _cacheService.StartAsync(_cts.Token);
-                DebugUtils.PrintSuccess("Cache Update Service is running in the background.");
-            }
-            catch (Exception ex)
-            {
-                DebugUtils.PrintError($"Failed to start Cache Update Service: {ex.Message}");
-            }
-            
-            while (true)
-            {
-                var input = Console.ReadLine()?.ToLower().Trim();
-                
-                switch (input)
-                {
-                    case "q":
-                        Quit();
-                        return;
-                }
-            }
+            // Start Analytics Background Service
+            await AnalyticsProcessingService.Instance.StartAsync(_cts.Token);
+            DebugUtils.PrintSuccess("Analytics Processing Service started.");
+        }
+        catch (Exception ex)
+        {
+            DebugUtils.PrintError($"Failed to start services: {ex.Message}");
         }
 
-        private static void Quit()
+        while (true)
         {
-            DebugUtils.PrintWarning("Shutting down application...");
-            _cts.Cancel();
+            var input = Console.ReadLine()?.ToLower().Trim();
 
-            if (_cacheService != null)
+            switch (input)
             {
-                try 
-                {
-                    _cacheService.StopAsync(CancellationToken.None).Wait();
-                }
-                catch (Exception ex)
-                {
-                    DebugUtils.PrintError($"Error stopping service: {ex.Message}");
-                }
+                case "q":
+                    Quit();
+                    return;
             }
-
-            DebugUtils.PrintWarning("Application shutdown complete");
         }
-        
-        static async Task TestMongoConnection()
+    }
+
+    private static void Quit()
+    {
+        DebugUtils.PrintWarning("Shutting down application...");
+        _cts.Cancel();
+
+        // Stop Cache Service
+        if (_cacheService != null)
         {
             try
             {
-                var database = Config.GetDatabase();
-                await database.ListCollectionNamesAsync();
-                DebugUtils.PrintSuccess("MongoDB connection successful!");
+                _cacheService.StopAsync(CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
-                DebugUtils.PrintError($"MongoDB connection failed: {ex.Message}");
+                DebugUtils.PrintError($"Error stopping cache service: {ex.Message}");
             }
+        }
+
+        // Stop Analytics Service
+        try
+        {
+            AnalyticsProcessingService.Instance.StopAsync().Wait();
+        }
+        catch (Exception ex)
+        {
+            DebugUtils.PrintError($"Error stopping analytics service: {ex.Message}");
+        }
+
+        DebugUtils.PrintWarning("Application shutdown complete");
+    }
+
+    static async Task TestMongoConnection()
+    {
+        try
+        {
+            var database = Config.GetDatabase();
+            await database.ListCollectionNamesAsync();
+            DebugUtils.PrintSuccess("MongoDB connection successful!");
+        }
+        catch (Exception ex)
+        {
+            DebugUtils.PrintError($"MongoDB connection failed: {ex.Message}");
         }
     }
 }

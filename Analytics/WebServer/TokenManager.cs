@@ -1,5 +1,7 @@
 ﻿using System.Collections.Concurrent;
 
+namespace KHSWeb.Tokens;
+
 public static class TokenManager
 {
     private static readonly ConcurrentDictionary<string, DateTime> _tokens = new();
