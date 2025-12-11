@@ -33,23 +33,53 @@ public class EventPropertiesEndpoint : WebEndpoint
 
             var recentEvents = await collection.Find(filter)
                 .SortByDescending(x => x.Timestamp)
-                .Limit(50)
+                .Limit(200)
                 .ToListAsync();
 
-            var propertyKeys = new HashSet<string>();
+            List<string> sortedKeys;
 
-            foreach (var evt in recentEvents)
+            if (projectId == "GLOBAL")
             {
-                if (evt.PropertiesDict != null)
+                var propertyProjectMap = new Dictionary<string, HashSet<string>>();
+
+                foreach (var evt in recentEvents)
                 {
-                    foreach (var key in evt.PropertiesDict.Keys)
+                    if (evt.PropertiesDict != null)
                     {
-                        propertyKeys.Add(key);
+                        foreach (var key in evt.PropertiesDict.Keys)
+                        {
+                            if (!propertyProjectMap.ContainsKey(key))
+                            {
+                                propertyProjectMap[key] = new HashSet<string>();
+                            }
+                            propertyProjectMap[key].Add(evt.ProjectId);
+                        }
                     }
                 }
+
+                sortedKeys = propertyProjectMap
+                    .Where(x => x.Value.Count >= 2)
+                    .Select(x => x.Key)
+                    .OrderBy(x => x)
+                    .ToList();
             }
-            
-            var sortedKeys = propertyKeys.OrderBy(x => x).ToList();
+            else
+            {
+                var propertyKeys = new HashSet<string>();
+
+                foreach (var evt in recentEvents)
+                {
+                    if (evt.PropertiesDict != null)
+                    {
+                        foreach (var key in evt.PropertiesDict.Keys)
+                        {
+                            propertyKeys.Add(key);
+                        }
+                    }
+                }
+                
+                sortedKeys = propertyKeys.OrderBy(x => x).ToList();
+            }
 
             return Results.Json(new ApiResponse<object>
             {

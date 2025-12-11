@@ -6,32 +6,20 @@
 KnuckleHUB.register('ChartRenderer', (function() {
     'use strict';
 
-    // Track active charts for cleanup
     const _activeCharts = {};
 
-    // Chart color palette
     const _baseColors = [
         'rgb(218, 135, 39)', 'rgb(76, 175, 80)', 'rgb(33, 150, 243)', 'rgb(156, 39, 176)',
         'rgb(255, 152, 0)', 'rgb(244, 67, 54)', 'rgb(0, 188, 212)', 'rgb(103, 58, 183)',
         'rgb(255, 87, 34)', 'rgb(205, 220, 57)'
     ];
 
-    /**
-     * Format a number with dots as thousands separator
-     * @param {number} num - Number to format
-     * @returns {string}
-     */
     function formatNumber(num) {
         const numberValue = Number(num);
         if (isNaN(numberValue)) return String(num);
         return Math.round(numberValue).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
-    /**
-     * Generate chart colors
-     * @param {number} count - Number of colors needed
-     * @returns {string[]}
-     */
     function generateColors(count) {
         if (count <= _baseColors.length) return _baseColors.slice(0, count);
 
@@ -43,10 +31,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         return colors;
     }
 
-    /**
-     * Clear a canvas and destroy any existing chart
-     * @param {string} canvasId - Canvas element ID
-     */
     function clearCanvas(canvasId) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
@@ -60,10 +44,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         }
     }
 
-    /**
-     * Destroy a specific chart
-     * @param {string} canvasId - Canvas element ID
-     */
     function destroyChart(canvasId) {
         if (_activeCharts[canvasId]) {
             _activeCharts[canvasId].destroy();
@@ -71,13 +51,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         }
     }
 
-    /**
-     * Main render function
-     * @param {string} canvasId - Canvas element ID
-     * @param {Object} chartData - Chart data from API
-     * @param {string} chartType - Type of chart
-     * @param {Object} config - Chart configuration
-     */
     function render(canvasId, chartData, chartType, config = null) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
@@ -96,7 +69,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         canvas.width = newWidth;
         canvas.height = newHeight;
 
-        // Destroy existing chart
         destroyChart(canvasId);
 
         if (chartType === 'NumberCard') {
@@ -107,7 +79,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         const dataArray = chartData.data || [];
         const hasData = dataArray.length > 0;
 
-        // Smart Detection: Check if data is truly multi-series
         const isActuallyMultiSeries = chartData.type === 'multiLine' ||
             (hasData && dataArray[0].hasOwnProperty('data') && Array.isArray(dataArray[0].data));
 
@@ -141,10 +112,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         }
     }
 
-    /**
-     * Render a number card
-     * @private
-     */
     function _renderNumberCard(ctx, data, config, width, height) {
         ctx.clearRect(0, 0, width, height);
 
@@ -179,12 +146,7 @@ KnuckleHUB.register('ChartRenderer', (function() {
         ctx.fillText(labelToDisplay, width / 2, height / 2 + 30);
     }
 
-    /**
-     * Render a Chart.js chart
-     * @private
-     */
     function _renderChartJsChart(ctx, chartData, chartType, canvasId, config, forceMultiSeries = false) {
-        // Handle LineChart integer series fix
         if (chartType === 'LineChart' && (chartData.type === 'multiLine' || forceMultiSeries) &&
             chartData.data && chartData.data.length > 0) {
             const isIntegerSeries = chartData.data.every(s => s.label && /^-?\d+$/.test(s.label));
@@ -213,10 +175,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         _activeCharts[canvasId] = new Chart(ctx, chartConfig);
     }
 
-    /**
-     * Aggregate integer series data
-     * @private
-     */
     function _aggregateIntegerSeries(chartData) {
         const aggregated = {};
         chartData.data.forEach(series => {
@@ -240,10 +198,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         };
     }
 
-    /**
-     * Build multi-series chart config
-     * @private
-     */
     function _buildMultiSeriesConfig(chartData, chartType, days) {
         const seriesData = chartData.data || [];
         const colors = generateColors(seriesData.length);
@@ -254,7 +208,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         const isStackedBar = chartType === 'StackedBarChart';
         const mainType = isStackedBar ? 'bar' : 'line';
 
-        // Check if compression is needed
         if (days > 30 && labels.length > 30) {
             return _buildCompressedMultiSeriesConfig(seriesData, colors, labels, isStackedBar, mainType);
         }
@@ -277,10 +230,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         };
     }
 
-    /**
-     * Build compressed multi-series config
-     * @private
-     */
     function _buildCompressedMultiSeriesConfig(seriesData, colors, labels, isStackedBar, mainType) {
         const targetPoints = Math.min(30, labels.length);
         const compressionFactor = Math.ceil(labels.length / targetPoints);
@@ -326,10 +275,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         };
     }
 
-    /**
-     * Build single line chart config
-     * @private
-     */
     function _buildSingleLineConfig(chartData, days) {
         let labels = chartData.data?.map(item => item.date || item.label || item.key) || [];
         let dataValues = chartData.data?.map(item =>
@@ -383,6 +328,7 @@ KnuckleHUB.register('ChartRenderer', (function() {
                 }]
             },
             options: {
+                animation: false,
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
@@ -417,10 +363,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         };
     }
 
-    /**
-     * Build categorical chart config (Bar, Pie, Stacked)
-     * @private
-     */
     function _buildCategoricalConfig(chartData, chartType, config) {
         const rawData = chartData.data || [];
 
@@ -441,6 +383,7 @@ KnuckleHUB.register('ChartRenderer', (function() {
                     datasets
                 },
                 options: {
+                    animation: false,
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
@@ -463,7 +406,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
             };
         }
 
-        // Standard Bar or Pie Chart
         const labels = rawData.map(item => item.label || item.key || item.date);
         const values = rawData.map(item => item.value !== undefined ? item.value : (item.count || 0));
 
@@ -480,6 +422,7 @@ KnuckleHUB.register('ChartRenderer', (function() {
                 }]
             },
             options: {
+                animation: false,
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
@@ -504,12 +447,9 @@ KnuckleHUB.register('ChartRenderer', (function() {
         };
     }
 
-    /**
-     * Get time series chart options
-     * @private
-     */
     function _getTimeSeriesOptions(isStacked, maxTicksLimit = 15) {
         return {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
@@ -534,7 +474,6 @@ KnuckleHUB.register('ChartRenderer', (function() {
         };
     }
 
-    // Public API
     return {
         render,
         clearCanvas,

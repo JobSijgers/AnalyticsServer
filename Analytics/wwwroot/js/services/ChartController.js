@@ -3,7 +3,7 @@
  * Shared service for managing chart operations across different pages.
  * Eliminates duplicate code between DashboardPage and ProjectPage.
  */
-KnuckleHUB.register('ChartController', (function() {
+KnuckleHUB.register('ChartController', (function () {
     'use strict';
 
     /**
@@ -35,7 +35,7 @@ KnuckleHUB.register('ChartController', (function() {
 
         container.innerHTML = '';
 
-        const sortedConfigs = [...configs].sort((a, b) => 
+        const sortedConfigs = [...configs].sort((a, b) =>
             (a.displayOrder || 0) - (b.displayOrder || 0)
         );
 
@@ -103,9 +103,7 @@ KnuckleHUB.register('ChartController', (function() {
 
         if (cachedResult.success && cachedResult.chartData) {
             chartWidget.hideLoading(config.id);
-            if (!readonly) {
-                chartWidget.updateSize(element, config, cachedResult.chartData);
-            }
+            chartWidget.updateSize(element, config, cachedResult.chartData);
             chartRenderer.render(chartId, cachedResult.chartData, config.chartType, config);
         }
 
@@ -124,9 +122,7 @@ KnuckleHUB.register('ChartController', (function() {
         chartWidget.hideLoading(config.id);
 
         if (freshResult.success && freshResult.chartData) {
-            if (!readonly) {
-                chartWidget.updateSize(element, config, freshResult.chartData);
-            }
+            chartWidget.updateSize(element, config, freshResult.chartData);
             chartRenderer.render(chartId, freshResult.chartData, config.chartType, config);
         }
     }
@@ -173,15 +169,15 @@ KnuckleHUB.register('ChartController', (function() {
 
         if (result.success) {
             if (toast) toast.success('Chart deleted!');
-            
+
             // Remove from configs array
             const index = configs.findIndex(c => c.id === configId);
             if (index > -1) configs.splice(index, 1);
-            
+
             chartWidget.remove(configId);
 
             // Update order
-            const newOrder = configs.map((c, i) => ({ id: c.id, displayOrder: i }));
+            const newOrder = configs.map((c, i) => ({id: c.id, displayOrder: i}));
             await api.updateChartOrder(projectId, newOrder);
 
             return true;

@@ -1,6 +1,7 @@
 ﻿using KHSWeb.Models;
 using MongoDB.Driver;
 using Utils;
+using System.Linq;
 
 namespace KHSWeb.Endpoints;
 
@@ -22,7 +23,15 @@ public class EventKeysEndpoint : WebEndpoint
 
             if (projectId == "GLOBAL")
             {
-                keys = await collection.Distinct(x => x.Key, Builders<AnalyticEventDocument>.Filter.Empty).ToListAsync();
+                keys = await collection.Aggregate()
+                    .Group(x => x.Key, g => new 
+                    { 
+                        Key = g.Key, 
+                        ProjectIds = g.Select(x => x.ProjectId).Distinct() 
+                    })
+                    .Match(x => x.ProjectIds.Count() >= 2)
+                    .Project(x => x.Key)
+                    .ToListAsync();
             }
             else if (!string.IsNullOrEmpty(projectId))
             {
