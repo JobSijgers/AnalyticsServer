@@ -13,4 +13,5 @@ public class EventDisplayConfig
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public string FiltersJson { get; set; } = string.Empty;
+    public string WidgetSize { get; set; } = "normal";
 }

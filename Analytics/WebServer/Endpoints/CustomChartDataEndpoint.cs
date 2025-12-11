@@ -1,4 +1,4 @@
-﻿using KHSWeb.Models;
+﻿﻿using KHSWeb.Models;
 using KHSWeb.Services;
 using Utils;
 using MongoDB.Bson; // Added for BsonTypeMapper
@@ -13,6 +13,7 @@ public class CustomChartDataEndpoint : WebEndpoint
     
     private readonly ChartDataService _chartDataService = new();
     private readonly ChartCacheService _cacheService = new();
+    private readonly ChartConfigService _configService = new();
 
     public override Delegate Action => async (HttpContext context) =>
     {
@@ -32,6 +33,17 @@ public class CustomChartDataEndpoint : WebEndpoint
                 return Results.Json(new ApiResponse<ChartDataResponse> { Success = false, Message = "Required fields missing" }, statusCode: 400);
             }
 
+            string widgetSize = "normal"; 
+            
+            if (!string.IsNullOrEmpty(configId))
+            {
+                var config = await _configService.GetConfigById(configId);
+                if (config != null && !string.IsNullOrEmpty(config.WidgetSize))
+                {
+                    widgetSize = config.WidgetSize;
+                }
+            }
+
             if (useCache && !string.IsNullOrEmpty(configId))
             {
                 var cachedDoc = await _cacheService.GetCachedDataAsync(configId, days);
@@ -43,7 +55,11 @@ public class CustomChartDataEndpoint : WebEndpoint
                     return Results.Json(new ApiResponse<ChartDataResponse>
                     {
                         Success = true,
-                        Data = new ChartDataResponse { ChartData = cleanData }
+                        Data = new ChartDataResponse 
+                        { 
+                            ChartData = cleanData,
+                            WidgetSize = widgetSize
+                        }
                     });
                 }
                 else
@@ -72,7 +88,11 @@ public class CustomChartDataEndpoint : WebEndpoint
             return Results.Json(new ApiResponse<ChartDataResponse>
             {
                 Success = true,
-                Data = new ChartDataResponse { ChartData = chartData }
+                Data = new ChartDataResponse 
+                { 
+                    ChartData = chartData,
+                    WidgetSize = widgetSize
+                }
             });
         }
         catch (Exception ex)

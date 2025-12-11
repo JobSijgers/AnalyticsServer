@@ -15,22 +15,30 @@ KnuckleHUB.register('ChartWidget', (function() {
     function createSkeleton(config, dashboardVar, readonly = false) {
         const chartElement = document.createElement('div');
         let sizeClass = 'chart-widget';
-        let chartHeight = '300px';
-        
-        if (config.chartType === 'NumberCard') {
+        let chartHeight = '300px'; // Default normal height
+
+        // Determine size based on widgetSize and chart type
+        if (config.widgetSize === 'small' || config.chartType === 'NumberCard') {
             sizeClass = 'chart-widget small';
             chartHeight = '150px';
+        } else if (config.widgetSize === 'large') {
+            sizeClass = 'chart-widget large';
+            chartHeight = '400px';
+        } else {
+            // normal size
+            sizeClass = 'chart-widget';
+            chartHeight = '300px';
         }
-        
+
         if (readonly) {
             sizeClass += ' readonly';
         }
-        
+
         chartElement.className = sizeClass;
         chartElement.setAttribute('data-chart-id', config.id);
         chartElement.style.position = 'relative';
         chartElement.innerHTML = _getSkeletonHTML(config, chartHeight, dashboardVar, readonly);
-        
+
         return chartElement;
     }
 
@@ -84,10 +92,23 @@ KnuckleHUB.register('ChartWidget', (function() {
      * @param {boolean} readonly - Readonly mode
      */
     function update(element, config, dashboardVar, readonly = false) {
-        const chartHeight = config.chartType === 'NumberCard' ? '150px' : '300px';
-        let className = config.chartType === 'NumberCard' ? 'chart-widget small' : 'chart-widget';
+        // Determine chart height based on saved widget size
+        let chartHeight = '300px'; // Default normal
+        if (config.widgetSize === 'small' || config.chartType === 'NumberCard') {
+            chartHeight = '150px';
+        } else if (config.widgetSize === 'large') {
+            chartHeight = '400px';
+        }
+
+        let className = 'chart-widget';
+        if (config.widgetSize === 'small' || config.chartType === 'NumberCard') {
+            className = 'chart-widget small';
+        } else if (config.widgetSize === 'large') {
+            className = 'chart-widget large';
+        }
+
         if (readonly) className += ' readonly';
-        
+
         element.className = className;
         element.setAttribute('data-chart-id', config.id);
         element.style.position = 'relative';
@@ -103,18 +124,18 @@ KnuckleHUB.register('ChartWidget', (function() {
      */
     function insertInOrder(container, element, config, allConfigs) {
         let inserted = false;
-        
+
         for (let i = 0; i < container.children.length; i++) {
             const childId = container.children[i].getAttribute('data-chart-id');
             const childConfig = allConfigs.find(c => c.id === childId);
-            
+
             if (childConfig && (childConfig.displayOrder || 0) > (config.displayOrder || 0)) {
                 container.insertBefore(element, container.children[i]);
                 inserted = true;
                 break;
             }
         }
-        
+
         if (!inserted) {
             container.appendChild(element);
         }
@@ -129,7 +150,7 @@ KnuckleHUB.register('ChartWidget', (function() {
         if (loadingEl) {
             loadingEl.style.display = 'flex';
         }
-        
+
         const canvas = document.getElementById(`chart-${configId}`);
         if (canvas) {
             canvas.classList.add('hidden-canvas');
@@ -145,7 +166,7 @@ KnuckleHUB.register('ChartWidget', (function() {
         if (loadingEl) {
             loadingEl.remove();
         }
-        
+
         const canvas = document.getElementById(`chart-${configId}`);
         if (canvas) {
             canvas.classList.remove('hidden-canvas');
@@ -153,22 +174,22 @@ KnuckleHUB.register('ChartWidget', (function() {
     }
 
     /**
-     * Update widget size based on data
+     * Update widget size based on saved preference
      * @param {HTMLElement} element - Widget element
      * @param {Object} config - Chart configuration
      * @param {Object} chartData - Chart data
      */
     function updateSize(element, config, chartData) {
-        const dataCount = chartData?.data?.length || 0;
-        const needsLarge = (config.chartType === 'BarChart' || 
-                          config.chartType === 'LineChart' || 
-                          config.chartType === 'StackedBarChart') && dataCount > 10;
-        
-        if (needsLarge) {
+        // Remove any existing size classes
+        element.classList.remove('small', 'large');
+
+        // Add the saved size class
+        if (config.widgetSize === 'small') {
+            element.classList.add('small');
+        } else if (config.widgetSize === 'large') {
             element.classList.add('large');
-        } else if (config.chartType !== 'NumberCard') {
-            element.classList.remove('large');
         }
+        // If normal, no additional class needed (uses default)
     }
 
     /**
@@ -180,7 +201,7 @@ KnuckleHUB.register('ChartWidget', (function() {
         if (chartRenderer) {
             chartRenderer.clearCanvas(`chart-${configId}`);
         }
-        
+
         const element = document.querySelector(`.chart-widget[data-chart-id="${configId}"]`);
         if (element) {
             element.remove();

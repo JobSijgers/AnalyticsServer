@@ -3,4 +3,5 @@
 public class ChartDataResponse
 {
     public object ChartData { get; set; } = new();
+    public string WidgetSize { get; set; } = "normal";
 }

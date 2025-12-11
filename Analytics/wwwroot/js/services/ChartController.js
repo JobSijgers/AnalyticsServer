@@ -76,14 +76,9 @@ KnuckleHUB.register('ChartController', (function () {
      * @param {boolean} options.readonly - Read-only mode
      * @returns {Promise<void>}
      */
+    // In the fetchAndRenderChart function:
     async function fetchAndRenderChart(options) {
-        const {
-            element,
-            config,
-            projectId,
-            days = 30,
-            readonly = false
-        } = options;
+        const { element, config, projectId, days = 30, readonly = false } = options;
 
         const api = KnuckleHUB.get('API');
         const chartRenderer = KnuckleHUB.get('ChartRenderer');
@@ -107,6 +102,12 @@ KnuckleHUB.register('ChartController', (function () {
         if (_activeRequests[config.id] === requestId) {
             if (cachedResult.success && cachedResult.chartData) {
                 chartWidget.hideLoading(config.id);
+
+                // Update config with widgetSize from response
+                if (cachedResult.widgetSize) {
+                    config.widgetSize = cachedResult.widgetSize;
+                }
+
                 chartWidget.updateSize(element, config, cachedResult.chartData);
                 chartRenderer.render(chartId, cachedResult.chartData, config.chartType, config);
             }
@@ -129,6 +130,11 @@ KnuckleHUB.register('ChartController', (function () {
             chartWidget.hideLoading(config.id);
 
             if (freshResult.success && freshResult.chartData) {
+                // Update config with widgetSize from response
+                if (freshResult.widgetSize) {
+                    config.widgetSize = freshResult.widgetSize;
+                }
+
                 chartWidget.updateSize(element, config, freshResult.chartData);
                 chartRenderer.render(chartId, freshResult.chartData, config.chartType, config);
             }
