@@ -1,0 +1,353 @@
+/**
+ * KnuckleHUB Charts Stylesheet
+ * Consolidated styles for all chart-related components
+ * This is the single source of truth for chart styling
+ */
+
+/* ===== CSS Variables ===== */
+:root {
+    --kh-primary: rgb(218, 135, 39);
+    --kh-primary-hover: #e69c4a;
+    --kh-bg-dark: #111;
+    --kh-bg-card: rgba(42, 42, 42, 0.85);
+    --kh-bg-card-hover: rgba(42, 42, 42, 0.95);
+    --kh-border: #444;
+    --kh-border-hover: rgb(218, 135, 39);
+    --kh-text: #eee;
+    --kh-text-muted: #aaa;
+    --kh-danger: #c62828;
+    --kh-danger-hover: #ff5252;
+    --kh-success: #2e7d32;
+}
+
+/* ===== Charts Grid Layout ===== */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    grid-auto-flow: row dense;
+    grid-auto-rows: minmax(200px, auto);
+}
+
+/* ===== Chart Widget Base ===== */
+.chart-widget {
+    background: var(--kh-bg-card);
+    border: 1px solid var(--kh-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    min-height: 432px;
+    height: auto;
+    animation: chartFadeIn 0.3s ease-out;
+}
+
+.chart-widget:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    border-color: var(--kh-border-hover);
+}
+
+/* Read-only mode - no hover effects */
+.chart-widget.readonly:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* ===== Widget Header ===== */
+.chart-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.chart-widget-header h4 {
+    margin: 0;
+    color: var(--kh-text);
+    font-size: 1.2rem;
+    font-weight: 600;
+    flex: 1;
+}
+
+.chart-widget-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Hide actions in read-only mode */
+.chart-widget.readonly .chart-widget-actions {
+    display: none;
+}
+
+/* ===== Action Buttons ===== */
+.chart-widget-actions .table-action {
+    background: rgba(218, 135, 39, 0.2);
+    border: 1px solid rgba(218, 135, 39, 0.5);
+    border-radius: 4px;
+    color: var(--kh-primary);
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.chart-widget-actions .table-action:hover {
+    background: rgba(218, 135, 39, 0.3);
+    border-color: var(--kh-primary);
+    transform: translateY(-1px);
+}
+
+.chart-widget-actions .table-action.delete {
+    background: rgba(244, 67, 54, 0.2);
+    border: 1px solid rgba(244, 67, 54, 0.5);
+    color: rgb(244, 67, 54);
+}
+
+.chart-widget-actions .table-action.delete:hover {
+    background: rgba(244, 67, 54, 0.3);
+    border-color: rgb(244, 67, 54);
+}
+
+/* ===== Chart Container ===== */
+.chart-container {
+    height: 300px;
+    position: relative;
+    margin-bottom: 1rem;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chart-container canvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* ===== Hidden Canvas (Loading State) ===== */
+.hidden-canvas {
+    display: none !important;
+}
+
+/* ===== Loading Spinner ===== */
+.loading-spinner-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #333;
+    border-top: 3px solid var(--kh-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ===== Chart Info Footer ===== */
+.chart-info {
+    border-top: 1px solid var(--kh-border);
+    padding-top: 1rem;
+}
+
+.chart-info small {
+    color: #888;
+    font-size: 0.8rem;
+}
+
+/* ===== Small Widget (NumberCard) ===== */
+.chart-widget.small {
+    align-self: start;
+    padding: 1rem;
+    grid-row: span 1;
+    min-height: 200px;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-widget:not(.small):not(.large) {
+    grid-row: span 2;
+}
+
+.chart-widget.small .chart-container {
+    height: 130px !important;
+    margin-bottom: 0;
+    flex: 1;
+}
+
+.chart-widget.small .chart-widget-header {
+    margin-bottom: 0.75rem;
+}
+
+.chart-widget.small .chart-info {
+    padding-top: 0.5rem;
+    margin-top: auto;
+}
+
+/* ===== Large Widget ===== */
+.charts-grid .chart-widget.large {
+    grid-column: span 2;
+    min-height: 300px;
+    border-color: #ff9800;
+}
+
+.charts-grid .chart-widget.large .chart-container {
+    height: 300px !important;
+}
+
+/* ===== Drag and Drop ===== */
+.charts-grid.draggable-grid .chart-widget[draggable="true"] {
+    cursor: grab;
+    transform-origin: center center;
+}
+
+.charts-grid.draggable-grid .chart-widget[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.chart-widget.dragging {
+    opacity: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    position: absolute !important;
+    top: -9999px;
+    left: -9999px;
+    pointer-events: none;
+}
+
+.chart-widget.placeholder {
+    background-color: rgba(218, 135, 39, 0.2);
+    border: 2px dashed var(--kh-primary);
+    transition: none;
+    opacity: 1;
+    box-sizing: border-box;
+    padding: 1.5rem;
+    border-radius: 12px;
+}
+
+.chart-widget.small.placeholder {
+    padding: 1rem;
+}
+
+/* Disable drag styling for readonly */
+.chart-widget.readonly[draggable="true"] {
+    cursor: default;
+}
+
+/* ===== Animation ===== */
+@keyframes chartFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== No Charts Message ===== */
+.no-charts-message {
+    text-align: center;
+    color: var(--kh-text-muted);
+    padding: 3rem;
+    font-style: italic;
+}
+
+/* ===== Responsive Design ===== */
+@media (max-width: 1024px) {
+    .charts-grid .chart-widget.large {
+        grid-column: span 1;
+        min-height: 350px;
+        grid-row: span 2;
+    }
+
+    .charts-grid .chart-widget.large .chart-container {
+        height: 250px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        grid-auto-rows: minmax(175px, auto);
+    }
+
+    .chart-widget {
+        padding: 1rem;
+        min-height: 350px;
+    }
+
+    .chart-widget.small {
+        min-height: 175px;
+        height: 175px;
+        padding: 0.75rem;
+        grid-row: span 1;
+    }
+
+    .chart-widget:not(.small):not(.large) {
+        grid-row: span 2;
+    }
+
+    .chart-widget.small .chart-container {
+        height: 110px !important;
+    }
+
+    .chart-widget-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .chart-widget-actions {
+        align-self: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-container {
+        height: 250px;
+    }
+
+    .chart-widget-header h4 {
+        font-size: 1rem;
+    }
+}
+
+/* ===== Embed Container Styles ===== */
+.kh-embed-container {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--kh-text);
+}
+
+.kh-embed-container .charts-grid {
+    padding: 1rem;
+}
+
+.kh-embed-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--kh-text-muted);
+}
+
+.kh-embed-error {
+    text-align: center;
+    padding: 2rem;
+    color: var(--kh-danger-hover);
+    background: rgba(198, 40, 40, 0.1);
+    border-radius: 8px;
+    margin: 1rem;
+}

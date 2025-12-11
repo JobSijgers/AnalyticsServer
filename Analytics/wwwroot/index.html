@@ -1,18 +1,16 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - KHS Analytics</title>
-    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/login.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 </head>
-<body>
-<!-- Background Canvas -->
+<body class="login-page">
 <canvas id="background-canvas"></canvas>
 
-<!-- Login Container -->
 <div class="login-container">
     <div class="login-card">
         <div class="login-header">
@@ -38,10 +36,17 @@
     </div>
 </div>
 
-<!-- Scripts -->
-<script src="js/ToastManager.js"></script>
-<script src="js/TokenManager.js"></script>
+<!-- Core Scripts -->
+<script src="js/core/App.js"></script>
+<script src="js/services/Toast.js"></script>
+<script src="js/services/Auth.js"></script>
+<script src="js/pages/LoginPage.js"></script>
 <script src="js/Particles.js"></script>
-<script src="js/Login.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        KnuckleHUB.init('login');
+    });
+</script>
 </body>
 </html>
