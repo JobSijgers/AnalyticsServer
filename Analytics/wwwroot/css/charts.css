@@ -4,7 +4,6 @@
  * This is the single source of truth for chart styling
  */
 
-/* ===== CSS Variables ===== */
 :root {
     --kh-primary: rgb(218, 135, 39);
     --kh-primary-hover: #e69c4a;
@@ -20,7 +19,6 @@
     --kh-success: #2e7d32;
 }
 
-/* ===== Charts Grid Layout ===== */
 .charts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -29,12 +27,11 @@
     grid-auto-rows: minmax(200px, auto);
 }
 
-/* ===== Chart Widget Base ===== */
 .chart-widget {
-    background: var(--kh-bg-card);
+    background: linear-gradient(180deg, var(--kh-bg-card) 0%, rgba(15, 15, 15, 0.95) 100%);
     border: 1px solid var(--kh-border);
     border-radius: 12px;
-    padding: 1.5rem;
+    padding: 1.25rem;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
     min-height: 432px;
@@ -45,16 +42,13 @@
 .chart-widget:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    border-color: var(--kh-border-hover);
 }
 
-/* Read-only mode - no hover effects */
 .chart-widget.readonly:hover {
     transform: none;
     box-shadow: none;
 }
 
-/* ===== Widget Header ===== */
 .chart-widget-header {
     display: flex;
     justify-content: space-between;
@@ -76,12 +70,10 @@
     flex-wrap: wrap;
 }
 
-/* Hide actions in read-only mode */
 .chart-widget.readonly .chart-widget-actions {
     display: none;
 }
 
-/* ===== Action Buttons ===== */
 .chart-widget-actions .table-action {
     background: rgba(218, 135, 39, 0.2);
     border: 1px solid rgba(218, 135, 39, 0.5);
@@ -96,7 +88,6 @@
 
 .chart-widget-actions .table-action:hover {
     background: rgba(218, 135, 39, 0.3);
-    border-color: var(--kh-primary);
     transform: translateY(-1px);
 }
 
@@ -111,7 +102,6 @@
     border-color: rgb(244, 67, 54);
 }
 
-/* ===== Chart Container ===== */
 .chart-container {
     height: 300px;
     position: relative;
@@ -127,12 +117,10 @@
     max-height: 100%;
 }
 
-/* ===== Hidden Canvas (Loading State) ===== */
 .hidden-canvas {
     display: none !important;
 }
 
-/* ===== Loading Spinner ===== */
 .loading-spinner-container {
     display: flex;
     align-items: center;
@@ -155,7 +143,6 @@
     100% { transform: rotate(360deg); }
 }
 
-/* ===== Chart Info Footer ===== */
 .chart-info {
     border-top: 1px solid var(--kh-border);
     padding-top: 1rem;
@@ -166,10 +153,9 @@
     font-size: 0.8rem;
 }
 
-/* ===== Small Widget (NumberCard) ===== */
 .chart-widget.small {
     align-self: start;
-    padding: 1rem;
+    padding: 0.75rem;
     grid-row: span 1;
     min-height: 200px;
     height: 200px;
@@ -196,18 +182,15 @@
     margin-top: auto;
 }
 
-/* ===== Large Widget ===== */
 .charts-grid .chart-widget.large {
     grid-column: span 2;
     min-height: 300px;
-    border-color: #ff9800;
 }
 
 .charts-grid .chart-widget.large .chart-container {
     height: 300px !important;
 }
 
-/* ===== Drag and Drop ===== */
 .charts-grid.draggable-grid .chart-widget[draggable="true"] {
     cursor: grab;
     transform-origin: center center;
@@ -241,12 +224,10 @@
     padding: 1rem;
 }
 
-/* Disable drag styling for readonly */
 .chart-widget.readonly[draggable="true"] {
     cursor: default;
 }
 
-/* ===== Animation ===== */
 @keyframes chartFadeIn {
     from {
         opacity: 0;
@@ -258,7 +239,6 @@
     }
 }
 
-/* ===== No Charts Message ===== */
 .no-charts-message {
     text-align: center;
     color: var(--kh-text-muted);
@@ -266,7 +246,6 @@
     font-style: italic;
 }
 
-/* ===== Responsive Design ===== */
 @media (max-width: 1024px) {
     .charts-grid .chart-widget.large {
         grid-column: span 1;
@@ -327,7 +306,6 @@
     }
 }
 
-/* ===== Embed Container Styles ===== */
 .kh-embed-container {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: var(--kh-text);

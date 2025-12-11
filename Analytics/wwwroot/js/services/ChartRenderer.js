@@ -34,7 +34,7 @@ KnuckleHUB.register('ChartRenderer', (function() {
      */
     function generateColors(count) {
         if (count <= _baseColors.length) return _baseColors.slice(0, count);
-        
+
         const colors = [..._baseColors];
         for (let i = _baseColors.length; i < count; i++) {
             const hue = (i * 137.5) % 360;
@@ -84,7 +84,7 @@ KnuckleHUB.register('ChartRenderer', (function() {
 
         const ctx = canvas.getContext('2d');
         const container = canvas.parentElement;
-        
+
         let newWidth = container.clientWidth;
         let newHeight = container.clientHeight;
 
@@ -117,12 +117,12 @@ KnuckleHUB.register('ChartRenderer', (function() {
         if (hasData) {
             if (safeType === 'LineChart' || (safeType === 'StackedBarChart' && isActuallyMultiSeries)) {
                 if (isActuallyMultiSeries) {
-                    isMeaningful = dataArray.some(series => 
-                        series.data && series.data.length > 0 && 
+                    isMeaningful = dataArray.some(series =>
+                        series.data && series.data.length > 0 &&
                         series.data.some(p => p.value > 0 || p.count > 0)
                     );
                 } else {
-                    const valueField = dataArray.some(item => item.value !== undefined && item.value !== 0) 
+                    const valueField = dataArray.some(item => item.value !== undefined && item.value !== 0)
                         ? 'value' : 'count';
                     isMeaningful = dataArray.some(item => item[valueField] > 0);
                 }
@@ -147,7 +147,7 @@ KnuckleHUB.register('ChartRenderer', (function() {
      */
     function _renderNumberCard(ctx, data, config, width, height) {
         ctx.clearRect(0, 0, width, height);
-        
+
         const cardData = data?.data;
         if (!cardData) {
             ctx.font = '16px Arial';
@@ -185,7 +185,7 @@ KnuckleHUB.register('ChartRenderer', (function() {
      */
     function _renderChartJsChart(ctx, chartData, chartType, canvasId, config, forceMultiSeries = false) {
         // Handle LineChart integer series fix
-        if (chartType === 'LineChart' && (chartData.type === 'multiLine' || forceMultiSeries) && 
+        if (chartType === 'LineChart' && (chartData.type === 'multiLine' || forceMultiSeries) &&
             chartData.data && chartData.data.length > 0) {
             const isIntegerSeries = chartData.data.every(s => s.label && /^-?\d+$/.test(s.label));
             if (isIntegerSeries) {
@@ -203,7 +203,7 @@ KnuckleHUB.register('ChartRenderer', (function() {
         let chartConfig;
 
         if (chartType === 'LineChart' || (chartType === 'StackedBarChart' && isMultiSeries)) {
-            chartConfig = isMultiSeries 
+            chartConfig = isMultiSeries
                 ? _buildMultiSeriesConfig(chartData, chartType, days)
                 : _buildSingleLineConfig(chartData, days);
         } else {
@@ -332,10 +332,10 @@ KnuckleHUB.register('ChartRenderer', (function() {
      */
     function _buildSingleLineConfig(chartData, days) {
         let labels = chartData.data?.map(item => item.date || item.label || item.key) || [];
-        let dataValues = chartData.data?.map(item => 
+        let dataValues = chartData.data?.map(item =>
             item.value !== undefined ? item.value : (item.count || 0)
         ) || [];
-        
+
         const labelText = 'Event Count';
         let isCompressed = false;
 
@@ -482,7 +482,13 @@ KnuckleHUB.register('ChartRenderer', (function() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: {
+                        display: chartType !== 'BarChart',
+                        position: 'right',
+                        labels: { color: '#eee', boxWidth: 10 }
+                    }
+                },
                 scales: (chartType === 'BarChart') ? {
                     y: {
                         beginAtZero: true,
