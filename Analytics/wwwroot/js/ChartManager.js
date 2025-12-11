@@ -10,69 +10,7 @@ class ChartManager {
         if (isNaN(numberValue)) return String(num);
         return Math.round(numberValue).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
-
-    createPropertyDistributionChart() {
-        const canvas = document.getElementById('properties-chart');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const container = canvas.parentElement;
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight;
-        if (this.pieChart) this.pieChart.destroy();
-        if (this.activeCharts['properties-chart']) {
-            this.activeCharts['properties-chart'].destroy();
-            delete this.activeCharts['properties-chart'];
-        }
-        if (!this.dashboard.currentData || !this.dashboard.currentData.topProperties || this.dashboard.currentData.topProperties.length === 0) {
-            ctx.font = '16px Arial';
-            ctx.fillStyle = '#aaa';
-            ctx.textAlign = 'center';
-            ctx.fillText('No property data available', canvas.width / 2, canvas.height / 2);
-            return;
-        }
-        const labels = this.dashboard.currentData.topProperties.map(prop =>
-            this.dashboard.truncateText(prop.Key || prop.key || 'Unknown', 15)
-        );
-        const data = this.dashboard.currentData.topProperties.map(prop => prop.Count || prop.count || 0);
-        const total = data.reduce((sum, value) => sum + value, 0);
-        const colors = this.generateChartColors(data.length);
-        this.pieChart = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: colors,
-                    borderColor: '#2a2a2a',
-                    borderWidth: 2,
-                    hoverOffset: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: 10 },
-                plugins: {
-                    legend: { position: 'right', labels: { color: '#eee', font: { family: "'Roboto', sans-serif", size: 12 }, padding: 15, boxWidth: 12 } },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => {
-                                const value = context.raw || 0;
-                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                return `${context.label}: ${value} events (${percentage}%)`;
-                            }
-                        },
-                        backgroundColor: 'rgba(42, 42, 42, 0.95)',
-                        titleColor: '#eee',
-                        bodyColor: '#eee',
-                        borderColor: 'rgb(218, 135, 39)',
-                        borderWidth: 1
-                    }
-                }
-            }
-        });
-    }
-
+    
     generateChartColors(count) {
         const baseColors = [
             'rgb(218, 135, 39)', 'rgb(76, 175, 80)', 'rgb(33, 150, 243)', 'rgb(156, 39, 176)',
