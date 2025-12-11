@@ -6,6 +6,8 @@
 KnuckleHUB.register('ChartController', (function () {
     'use strict';
 
+    const _activeRequests = {};
+
     /**
      * Render all charts for a project
      * @param {Object} options - Render options
@@ -54,7 +56,6 @@ KnuckleHUB.register('ChartController', (function () {
             }));
         }
 
-        // Setup drag and drop if enabled and not readonly
         if (enableDragDrop && !readonly && onOrderChange) {
             const dragDrop = KnuckleHUB.get('DragDrop');
             if (dragDrop) {
@@ -89,7 +90,9 @@ KnuckleHUB.register('ChartController', (function () {
         const chartWidget = KnuckleHUB.get('ChartWidget');
         const chartId = `chart-${config.id}`;
 
-        // Try cached data first
+        const requestId = Date.now();
+        _activeRequests[config.id] = requestId;
+
         const cachedResult = await api.getChartData({
             projectId: projectId,
             eventKey: config.eventKey,
@@ -101,13 +104,16 @@ KnuckleHUB.register('ChartController', (function () {
             useCache: true
         });
 
-        if (cachedResult.success && cachedResult.chartData) {
-            chartWidget.hideLoading(config.id);
-            chartWidget.updateSize(element, config, cachedResult.chartData);
-            chartRenderer.render(chartId, cachedResult.chartData, config.chartType, config);
+        if (_activeRequests[config.id] === requestId) {
+            if (cachedResult.success && cachedResult.chartData) {
+                chartWidget.hideLoading(config.id);
+                chartWidget.updateSize(element, config, cachedResult.chartData);
+                chartRenderer.render(chartId, cachedResult.chartData, config.chartType, config);
+            }
+        } else {
+            return;
         }
 
-        // Fetch fresh data
         const freshResult = await api.getChartData({
             projectId: projectId,
             eventKey: config.eventKey,
@@ -119,11 +125,13 @@ KnuckleHUB.register('ChartController', (function () {
             useCache: false
         });
 
-        chartWidget.hideLoading(config.id);
+        if (_activeRequests[config.id] === requestId) {
+            chartWidget.hideLoading(config.id);
 
-        if (freshResult.success && freshResult.chartData) {
-            chartWidget.updateSize(element, config, freshResult.chartData);
-            chartRenderer.render(chartId, freshResult.chartData, config.chartType, config);
+            if (freshResult.success && freshResult.chartData) {
+                chartWidget.updateSize(element, config, freshResult.chartData);
+                chartRenderer.render(chartId, freshResult.chartData, config.chartType, config);
+            }
         }
     }
 
@@ -137,7 +145,6 @@ KnuckleHUB.register('ChartController', (function () {
     async function updateOrder(projectId, configs, newOrder) {
         const api = KnuckleHUB.get('API');
 
-        // Update local configs
         configs.forEach(config => {
             const orderItem = newOrder.find(o => o.id === config.id);
             if (orderItem) {
@@ -145,7 +152,6 @@ KnuckleHUB.register('ChartController', (function () {
             }
         });
 
-        // Save to server
         await api.updateChartOrder(projectId, newOrder);
     }
 
@@ -170,13 +176,11 @@ KnuckleHUB.register('ChartController', (function () {
         if (result.success) {
             if (toast) toast.success('Chart deleted!');
 
-            // Remove from configs array
             const index = configs.findIndex(c => c.id === configId);
             if (index > -1) configs.splice(index, 1);
 
             chartWidget.remove(configId);
 
-            // Update order
             const newOrder = configs.map((c, i) => ({id: c.id, displayOrder: i}));
             await api.updateChartOrder(projectId, newOrder);
 
@@ -215,7 +219,6 @@ KnuckleHUB.register('ChartController', (function () {
         return underscoreIndex !== -1 ? projectName.substring(underscoreIndex + 1) : projectName;
     }
 
-    // Public API
     return {
         renderCharts,
         fetchAndRenderChart,
