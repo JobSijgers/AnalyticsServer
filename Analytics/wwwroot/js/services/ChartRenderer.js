@@ -9,9 +9,15 @@ KnuckleHUB.register('ChartRenderer', (function() {
     const _activeCharts = {};
 
     const _baseColors = [
-        'rgb(218, 135, 39)', 'rgb(76, 175, 80)', 'rgb(33, 150, 243)', 'rgb(156, 39, 176)',
-        'rgb(255, 152, 0)', 'rgb(244, 67, 54)', 'rgb(0, 188, 212)', 'rgb(103, 58, 183)',
-        'rgb(255, 87, 34)', 'rgb(205, 220, 57)'
+        'rgb(84, 112, 198)',
+        'rgb(145, 204, 117)',
+        'rgb(250, 200, 88)',
+        'rgb(238, 102, 102)',
+        'rgb(115, 192, 222)',
+        'rgb(59, 162, 114)',
+        'rgb(252, 132, 82)',
+        'rgb(154, 96, 180)',
+        'rgb(234, 124, 204)'
     ];
 
     function formatNumber(num) {
@@ -239,9 +245,9 @@ KnuckleHUB.register('ChartRenderer', (function() {
             const compressedData = [];
             for (let i = 0; i < series.data.length; i += compressionFactor) {
                 const chunk = series.data.slice(i, i + compressionFactor);
+                // Sum instead of average
                 const sum = chunk.reduce((total, item) => total + (item.value || item.count || 0), 0);
-                const average = chunk.length > 0 ? Math.round(sum / chunk.length) : 0;
-                compressedData.push(average);
+                compressedData.push(sum);
 
                 if (chunk.length > 0 && compressedLabels.length < Math.ceil(series.data.length / compressionFactor)) {
                     if (chunk.length === 1) {
@@ -294,8 +300,10 @@ KnuckleHUB.register('ChartRenderer', (function() {
             for (let i = 0; i < labels.length; i += compressionFactor) {
                 const dataChunk = dataValues.slice(i, i + compressionFactor);
                 const labelChunk = labels.slice(i, i + compressionFactor);
-                const averageValue = dataChunk.reduce((sum, val) => sum + val, 0) / dataChunk.length;
-                compressedData.push(Math.round(averageValue));
+
+                // Sum instead of average
+                const totalValue = dataChunk.reduce((sum, val) => sum + val, 0);
+                compressedData.push(Math.round(totalValue));
 
                 if (labelChunk.length > 0) {
                     if (labelChunk.length === 1) {
@@ -337,12 +345,12 @@ KnuckleHUB.register('ChartRenderer', (function() {
                         callbacks: {
                             title: (context) => {
                                 const label = context[0].label;
-                                if (label.includes(' - ')) return `${label} (period average)`;
-                                return isCompressed ? `${label} (average)` : label;
+                                if (label.includes(' - ')) return `${label} (period total)`;
+                                return isCompressed ? `${label} (total)` : label;
                             },
                             label: (context) => {
                                 const value = context.parsed.y;
-                                return isCompressed ? `${labelText}: ${value} (avg)` : `${labelText}: ${value}`;
+                                return isCompressed ? `${labelText}: ${value} (total)` : `${labelText}: ${value}`;
                             }
                         }
                     }
