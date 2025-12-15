@@ -22,30 +22,38 @@ class Program
         {
             DebugUtils.Print("Starting Services...");
 
-            // Start Cache Service
             _cacheService = new CacheUpdateService();
             await _cacheService.StartAsync(_cts.Token);
             DebugUtils.PrintSuccess("Cache Update Service started.");
 
-            // Start Analytics Background Service
             await AnalyticsProcessingService.Instance.StartAsync(_cts.Token);
             DebugUtils.PrintSuccess("Analytics Processing Service started.");
         }
         catch (Exception ex)
         {
             DebugUtils.PrintError($"Failed to start services: {ex.Message}");
+            return;
         }
 
-        while (true)
+        Console.CancelKeyPress += (sender, eventArgs) =>
         {
-            var input = Console.ReadLine()?.ToLower().Trim();
+            eventArgs.Cancel = true; 
+            _cts.Cancel(); 
+        };
 
-            switch (input)
-            {
-                case "q":
-                    Quit();
-                    return;
-            }
+        DebugUtils.PrintWarning("Application is running. Press 'q' then Enter to quit, or press Ctrl+C.");
+
+        try
+        {
+            await Task.Delay(-1, _cts.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            // Expected exception when _cts.Cancel() is called
+        }
+        finally
+        {
+            Quit();
         }
     }
 
@@ -54,7 +62,6 @@ class Program
         DebugUtils.PrintWarning("Shutting down application...");
         _cts.Cancel();
 
-        // Stop Cache Service
         if (_cacheService != null)
         {
             try

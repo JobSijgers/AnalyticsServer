@@ -1,4 +1,4 @@
-﻿using KHSWeb.Models;
+﻿﻿using KHSWeb.Models;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using Utils;
@@ -215,8 +215,11 @@ public class ChartDataService
             {
                 { "ProjectId", 1 },
                 { "Timestamp", 1 },
-                { "PropertyValue", new BsonDocument("$ifNull", new BsonArray { "$Properties." + propertyName, "Unknown" }) }
+                { "PropertyValue", "$Properties." + propertyName }  // Changed: Removed $ifNull
             })
+            // Add filter to exclude documents without the property
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$exists", true)))
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$ne", BsonNull.Value)))
             .Project(new BsonDocument
             {
                 { "ProjectId", 1 },
@@ -373,8 +376,11 @@ public class ChartDataService
             .Project(new BsonDocument
             {
                 { "Timestamp", 1 },
-                { "PropertyValue", new BsonDocument("$ifNull", new BsonArray { "$Properties." + propertyName, "0" }) }
+                { "PropertyValue", "$Properties." + propertyName }  // Changed: Removed $ifNull
             })
+            // Add filter to exclude documents without the property
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$exists", true)))
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$ne", BsonNull.Value)))
             .Match(new BsonDocument("PropertyValue", new BsonDocument("$regex", new BsonRegularExpression("^\\d+$"))))
             .Group(new BsonDocument
             {
@@ -407,8 +413,11 @@ public class ChartDataService
             .Project(new BsonDocument
             {
                 { "Timestamp", 1 },
-                { "PropertyValue", new BsonDocument("$ifNull", new BsonArray { "$Properties." + propertyName, "Unknown" }) }
+                { "PropertyValue", "$Properties." + propertyName }  // Changed: Removed $ifNull
             })
+            // Add filter to exclude documents without the property
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$exists", true)))
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$ne", BsonNull.Value)))
             .Project(new BsonDocument
             {
                 { "Timestamp", 1 },
@@ -557,8 +566,11 @@ public class ChartDataService
             .Project(new BsonDocument
             {
                 { "ProjectId", 1 },
-                { "PropertyValue", new BsonDocument("$ifNull", new BsonArray { "$Properties." + propertyName, "Unknown" }) }
+                { "PropertyValue", "$Properties." + propertyName }  // Changed: Removed $ifNull
             })
+            // Add filter to exclude documents without the property
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$exists", true)))
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$ne", BsonNull.Value)))
             .Project(new BsonDocument
             {
                 { "ProjectId", 1 },
@@ -649,8 +661,11 @@ public class ChartDataService
             .Match(filter)
             .Project(new BsonDocument
             {
-                { "PropertyValue", new BsonDocument("$ifNull", new BsonArray { "$Properties." + propertyName, "0" }) }
+                { "PropertyValue", "$Properties." + propertyName }  // Changed: Removed $ifNull
             })
+            // Add filter to exclude documents without the property
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$exists", true)))
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$ne", BsonNull.Value)))
             .Match(new BsonDocument("PropertyValue", new BsonDocument("$regex", new BsonRegularExpression("^-?\\d+(\\.\\d+)?$"))))
             .Group(new BsonDocument
             {
