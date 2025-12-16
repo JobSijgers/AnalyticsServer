@@ -586,3 +586,85 @@ body {
         justify-content: center;
     }
 }
+
+/* ===== Project Card Action Buttons ===== */
+
+/* Container for the top-right icons */
+.card-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 8px;
+    z-index: 20; /* Above the overlay */
+    opacity: 0;
+    transform: translateY(-5px);
+    transition: all 0.2s ease-in-out;
+}
+
+/* Show buttons on card hover */
+.project-card:hover .card-controls {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Icon Buttons Style */
+.card-icon-btn {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--kh-border-light);
+    color: var(--kh-text);
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+    padding: 0;
+    line-height: 1;
+}
+
+.card-icon-btn:hover {
+    background: var(--kh-primary);
+    border-color: var(--kh-primary);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Specific colors for specific actions on hover */
+.card-icon-btn.delete-btn:hover {
+    background: var(--kh-danger);
+    border-color: var(--kh-danger);
+}
+
+.card-icon-btn.download-btn:hover {
+    background: #2196F3;
+    border-color: #2196F3;
+}
+
+/* Fix for the label acting as a button */
+label.card-icon-btn {
+    display: flex; /* Restore flex for labels */
+    margin: 0;
+}
+
+/* Make sure the title overlay doesn't block the buttons */
+.project-card-overlay {
+    z-index: 10;
+}
+
+/* ===== Global Nav Upload Button ===== */
+.nav-upload-btn {
+    margin-right: 10px;
+    background: transparent;
+    border: 1px solid var(--kh-success);
+    color: var(--kh-success);
+}
+
+.nav-upload-btn:hover {
+    background: rgba(46, 125, 50, 0.1);
+    color: #4caf50;
+    border-color: #4caf50;
+}

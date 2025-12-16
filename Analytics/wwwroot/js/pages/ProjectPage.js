@@ -43,7 +43,7 @@ KnuckleHUB.register('ProjectPage', (function() {
         _elements.logoutBtn?.addEventListener('click', _handleLogout);
         _elements.refreshBtn?.addEventListener('click', () => _loadDashboardData(true));
         _elements.retryBtn?.addEventListener('click', () => _loadDashboardData(true));
-        
+
         _elements.projectSelect?.addEventListener('change', (e) => {
             _currentProject = e.target.value;
             localStorage.setItem('khs_analytics_projectId', _currentProject);
@@ -57,7 +57,7 @@ KnuckleHUB.register('ProjectPage', (function() {
             const modal = KnuckleHUB.get('ChartConfigModal');
             if (modal) modal.show(_currentProject, false);
         };
-        
+
         _elements.newChartBtn?.addEventListener('click', showModal);
         _elements.createFirstChartBtn?.addEventListener('click', showModal);
     }
@@ -175,6 +175,49 @@ KnuckleHUB.register('ProjectPage', (function() {
         chartController.copyMetricLink(chartId);
     }
 
+    // --- NEW: Sorting Handlers ---
+    function toggleSortMenu(event, chartId) {
+        event.stopPropagation();
+        const menu = document.getElementById(`sort-menu-${chartId}`);
+        if (!menu) return;
+
+        // Close other menus
+        document.querySelectorAll('.sort-menu-dropdown').forEach(el => {
+            if (el.id !== `sort-menu-${chartId}`) el.classList.add('hidden');
+        });
+
+        if (menu.classList.contains('hidden')) {
+            menu.classList.remove('hidden');
+            // Click outside to close
+            const closeHandler = () => {
+                menu.classList.add('hidden');
+                document.removeEventListener('click', closeHandler);
+            };
+            setTimeout(() => document.addEventListener('click', closeHandler), 0);
+        } else {
+            menu.classList.add('hidden');
+        }
+    }
+
+    async function applySort(chartId, sortType) {
+        const config = _chartConfigs.find(c => c.id === chartId);
+        if (!config) return;
+
+        config.sortOrder = sortType;
+
+        // Save to backend
+        const api = KnuckleHUB.get('API');
+        try {
+            await api.saveChartConfig(config);
+        } catch (e) {
+            console.error("Failed to save sort preference", e);
+        }
+
+        // Re-render
+        await _renderCharts();
+    }
+    // -----------------------------
+
     function _updateDashboardState() {
         if (_chartConfigs.length === 0) {
             _elements.welcomeSection?.classList.remove('hidden');
@@ -211,7 +254,9 @@ KnuckleHUB.register('ProjectPage', (function() {
         deleteChart,
         copyMetricLink,
         getCurrentProject,
-        getChartConfigs
+        getChartConfigs,
+        toggleSortMenu, // Export
+        applySort       // Export
     };
 })());
 

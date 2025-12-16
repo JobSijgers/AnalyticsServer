@@ -1,4 +1,4 @@
-﻿﻿using KHSWeb.Models;
+﻿using KHSWeb.Models;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using Utils;
@@ -124,8 +124,6 @@ public class ChartDataService
                 return await ProcessLineChartAggregation(collection, finalFilter, propertyName, days, projectId, isEmptyProperty);
             
             case "stackedbarchart":
-                // FIX: Always use LineChartAggregation (Time-Series) for StackedBarChart
-                // This ensures we get data grouped by DATE, which allows stacking over time.
                 return await ProcessLineChartAggregation(collection, finalFilter, propertyName, days, projectId, isEmptyProperty);
             
             case "barchart":
@@ -135,6 +133,7 @@ public class ChartDataService
                 return await ProcessPieChartAggregation(collection, finalFilter, propertyName, projectId, isEmptyProperty);
             
             case "numbercard":
+            case "averagenumbercard":
                 return await ProcessNumberCardAggregation(collection, finalFilter, propertyName, isEmptyProperty);
             
             default:
@@ -645,7 +644,7 @@ public class ChartDataService
         return new { type = type, data = distribution };
     }
 
-    private async Task<object> ProcessNumberCardAggregation(
+private async Task<object> ProcessNumberCardAggregation(
         IMongoCollection<AnalyticEventDocument> collection,
         FilterDefinition<AnalyticEventDocument> filter,
         string propertyName,
@@ -654,39 +653,99 @@ public class ChartDataService
         if (isEmptyProperty)
         {
             var count = await collection.CountDocumentsAsync(filter);
-            return new { type = "number", data = new { total = count, sumValue = 0.0, avgValue = 0.0 } };
+            return new { type = "number", format = "number", data = new { total = count, sumValue = 0.0, avgValue = 0.0 } };
         }
 
+        // 1. Detect Format by sampling one document
+        string detectedFormat = "number";
+        try 
+        {
+            var checkFilter = Builders<AnalyticEventDocument>.Filter.And(
+                filter,
+                Builders<AnalyticEventDocument>.Filter.Exists("Properties." + propertyName),
+                Builders<AnalyticEventDocument>.Filter.Ne("Properties." + propertyName, BsonNull.Value)
+            );
+
+            var sample = await collection.Find(checkFilter)
+                .Project(Builders<AnalyticEventDocument>.Projection.Include("Properties." + propertyName))
+                .Limit(1)
+                .FirstOrDefaultAsync();
+
+            if (sample != null && sample.Contains("Properties") && sample["Properties"].IsBsonDocument)
+            {
+                var props = sample["Properties"].AsBsonDocument;
+                if (props.Contains(propertyName))
+                {
+                    var val = props[propertyName];
+                    // Check if string contains colon (e.g. "1:30")
+                    if (val.IsString && val.AsString.Contains(":"))
+                    {
+                        detectedFormat = "time";
+                    }
+                }
+            }
+        }
+        catch { /* Ignore sampling errors */ }
+
+        // 2. Define Aggregation Logic (Converts "M:SS" to seconds if needed)
+        var valueConversionLogic = new BsonDocument("$cond", new BsonDocument
+        {
+            { "if", new BsonDocument("$regexMatch", new BsonDocument 
+                { 
+                    { "input", "$PropertyValue" }, 
+                    { "regex", new BsonRegularExpression(":") } 
+                }) 
+            },
+            { "then", new BsonDocument("$let", new BsonDocument 
+                {
+                    { "vars", new BsonDocument("parts", new BsonDocument("$split", new BsonArray { "$PropertyValue", ":" })) },
+                    { "in", new BsonDocument("$add", new BsonArray 
+                        {
+                            new BsonDocument("$multiply", new BsonArray 
+                            { 
+                                new BsonDocument("$toDouble", new BsonDocument("$arrayElemAt", new BsonArray { "$$parts", 0 })), 
+                                60 
+                            }),
+                            new BsonDocument("$toDouble", new BsonDocument("$arrayElemAt", new BsonArray { "$$parts", 1 }))
+                        }) 
+                    }
+                }) 
+            },
+            { "else", new BsonDocument("$toDouble", "$PropertyValue") }
+        });
+
+        // 3. Run Aggregation
         var aggregation = await collection.Aggregate()
             .Match(filter)
-            .Project(new BsonDocument
-            {
-                { "PropertyValue", "$Properties." + propertyName }  // Changed: Removed $ifNull
-            })
-            // Add filter to exclude documents without the property
+            .Project(new BsonDocument { { "PropertyValue", "$Properties." + propertyName } })
             .Match(new BsonDocument("PropertyValue", new BsonDocument("$exists", true)))
             .Match(new BsonDocument("PropertyValue", new BsonDocument("$ne", BsonNull.Value)))
-            .Match(new BsonDocument("PropertyValue", new BsonDocument("$regex", new BsonRegularExpression("^-?\\d+(\\.\\d+)?$"))))
+            .Match(new BsonDocument("PropertyValue", new BsonDocument("$regex", new BsonRegularExpression("^-?\\d+(\\.\\d+)?$|^\\d+:\\d{2}(\\.\\d+)?$"))))
             .Group(new BsonDocument
             {
                 { "_id", BsonNull.Value },
                 { "total", new BsonDocument("$sum", 1) },
-                { "sumValue", new BsonDocument("$sum", new BsonDocument("$toDouble", "$PropertyValue")) },
-                { "avgValue", new BsonDocument("$avg", new BsonDocument("$toDouble", "$PropertyValue")) }
+                { "sumValue", new BsonDocument("$sum", valueConversionLogic) },
+                { "avgValue", new BsonDocument("$avg", valueConversionLogic) }
             })
             .FirstOrDefaultAsync();
 
         if (aggregation == null)
         {
-            return new { type = "number", data = new { total = 0, sumValue = 0.0, avgValue = 0.0 } };
+            return new { type = "number", format = "number", data = new { total = 0, sumValue = 0.0, avgValue = 0.0 } };
         }
 
-        return new { type = "number", data = new 
-        { 
-            total = aggregation.GetValue("total", 0).AsInt32, 
-            sumValue = aggregation.GetValue("sumValue", 0.0).AsDouble, 
-            avgValue = aggregation.GetValue("avgValue", 0.0).AsDouble 
-        } };
+        // 4. Return result with "format" field
+        return new { 
+            type = "number", 
+            format = detectedFormat, // <--- Passing this to frontend
+            data = new 
+            { 
+                total = aggregation.GetValue("total", 0).AsInt32, 
+                sumValue = aggregation.GetValue("sumValue", 0.0).AsDouble, 
+                avgValue = aggregation.GetValue("avgValue", 0.0).AsDouble 
+            } 
+        };
     }
 
     private List<(string standard, string display)> GenerateDateRange(int days)

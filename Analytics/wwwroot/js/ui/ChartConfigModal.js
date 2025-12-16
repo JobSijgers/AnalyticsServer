@@ -83,8 +83,8 @@ KnuckleHUB.register('ChartConfigModal', (function() {
 
         if (_elements.chartTypeSelect) {
             _elements.chartTypeSelect.addEventListener('change', (e) => {
-                // Auto-set widget size to small for NumberCard
-                if (e.target.value === 'NumberCard' && !_editingChartId) {
+                // Auto-set widget size to small for NumberCards (Sum or Average)
+                if ((e.target.value === 'NumberCard' || e.target.value === 'AverageNumberCard') && !_editingChartId) {
                     if (_elements.widgetSizeSelect) {
                         _elements.widgetSizeSelect.value = 'small';
                     }
@@ -223,7 +223,8 @@ KnuckleHUB.register('ChartConfigModal', (function() {
             { value: 'BarChart', label: 'Bar Chart' },
             { value: 'StackedBarChart', label: 'Stacked Bar Chart' },
             { value: 'PieChart', label: 'Pie Chart' },
-            { value: 'NumberCard', label: 'Number Card' }
+            { value: 'NumberCard', label: 'Number Card (Sum/Total)' },
+            { value: 'AverageNumberCard', label: 'Average Number Card' }
         ];
 
         const currentSelection = _elements.chartTypeSelect.value;

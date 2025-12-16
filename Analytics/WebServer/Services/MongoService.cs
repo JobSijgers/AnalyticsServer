@@ -1,7 +1,8 @@
 ﻿using MongoDB.Driver;
 using KHSWeb.Models;
 using System.Text.Json;
-using Utils; // Added to access DebugUtils
+using MongoDB.Bson;
+using Utils; 
 
 namespace KHSWeb.Services;
 
@@ -49,5 +50,33 @@ public class MongoService
         return await events
             .Distinct<string>("ProjectId", FilterDefinition<AnalyticEventDocument>.Empty)
             .ToListAsync();
+    }
+
+    // [NEW] Get a cursor for streaming export
+    public async Task<IAsyncCursor<AnalyticEventDocument>> GetProjectEventsCursorAsync(string projectId)
+    {
+        var filter = Builders<AnalyticEventDocument>.Filter.Eq(x => x.ProjectId, projectId);
+        // Return cursor without fetching all documents into memory
+        return await events.Find(filter).ToCursorAsync();
+    }
+
+    // [NEW] Bulk insert for streaming import
+    public async Task BulkInsertEventsAsync(IEnumerable<AnalyticEventDocument> eventBatch)
+    {
+        if (eventBatch == null || !eventBatch.Any()) return;
+        
+        // Ordered: false ensures that if one fails, the others still try to insert
+        await events.InsertManyAsync(eventBatch, new InsertManyOptions { IsOrdered = false });
+    }
+    
+    public async Task<IAsyncCursor<BsonDocument>> GetProjectEventsRawCursorAsync(string projectId)
+    {
+        var filter = Builders<AnalyticEventDocument>.Filter.Eq(x => x.ProjectId, projectId);
+    
+        // Get the underlying IMongoCollection<BsonDocument> to bypass strict mapping
+        var rawCollection = events.Database.GetCollection<BsonDocument>(Config.MetricsCollectionName);
+        var rawFilter = Builders<BsonDocument>.Filter.Eq("ProjectId", projectId);
+    
+        return await rawCollection.Find(rawFilter).ToCursorAsync();
     }
 }

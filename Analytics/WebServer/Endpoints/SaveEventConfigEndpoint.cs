@@ -41,6 +41,13 @@ public class SaveEventConfigEndpoint : WebEndpoint
                 }, statusCode: 400);
             }
 
+            // --- Default SortOrder Logic ---
+            if (string.IsNullOrEmpty(config.SortOrder))
+            {
+                config.SortOrder = "highest";
+            }
+            // -------------------------------
+
             config.UpdatedAt = DateTime.UtcNow;
 
             if (string.IsNullOrEmpty(config.Id))

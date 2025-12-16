@@ -26,6 +26,16 @@ KnuckleHUB.register('ChartRenderer', (function() {
         return Math.round(numberValue).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
+    // Helper to format Seconds into M:SS.s
+    function formatTime(totalSeconds) {
+        if (isNaN(totalSeconds)) return "0:00";
+
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = Math.floor(totalSeconds % 60);
+
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
     function generateColors(count) {
         if (count <= _baseColors.length) return _baseColors.slice(0, count);
 
@@ -57,6 +67,9 @@ KnuckleHUB.register('ChartRenderer', (function() {
         }
     }
 
+    /**
+     * Main Render Function
+     */
     function render(canvasId, chartData, chartType, config = null) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
@@ -67,7 +80,8 @@ KnuckleHUB.register('ChartRenderer', (function() {
         let newWidth = container.clientWidth;
         let newHeight = container.clientHeight;
 
-        if (chartType === 'NumberCard' && newHeight === 0) {
+        // Auto-size adjustment for Number Cards
+        if ((chartType === 'NumberCard' || chartType === 'AverageNumberCard') && newHeight === 0) {
             newHeight = 150;
             if (newWidth === 0) newWidth = container.offsetWidth > 0 ? container.offsetWidth : 300;
         }
@@ -77,11 +91,13 @@ KnuckleHUB.register('ChartRenderer', (function() {
 
         destroyChart(canvasId);
 
-        if (chartType === 'NumberCard') {
-            _renderNumberCard(ctx, chartData, config, canvas.width, canvas.height);
+        // --- Handle Number Cards (Sum and Average) ---
+        if (chartType === 'NumberCard' || chartType === 'AverageNumberCard') {
+            _renderNumberCard(ctx, chartData, config, canvas.width, canvas.height, chartType);
             return;
         }
 
+        // --- Handle Standard Charts (Line, Bar, Pie, etc.) ---
         const dataArray = chartData.data || [];
         const hasData = dataArray.length > 0;
 
@@ -118,7 +134,10 @@ KnuckleHUB.register('ChartRenderer', (function() {
         }
     }
 
-    function _renderNumberCard(ctx, data, config, width, height) {
+    /**
+     * Render Logic for Number/Average Cards
+     */
+    function _renderNumberCard(ctx, data, config, width, height, chartType = 'NumberCard') {
         ctx.clearRect(0, 0, width, height);
 
         const cardData = data?.data;
@@ -130,9 +149,22 @@ KnuckleHUB.register('ChartRenderer', (function() {
             return;
         }
 
-        const showSum = cardData.sumValue !== undefined && cardData.sumValue !== 0;
-        const valueToDisplay = showSum ? cardData.sumValue : cardData.total;
+        let valueToDisplay = 0;
+        const isAverage = chartType === 'AverageNumberCard';
+
+        if (isAverage) {
+            valueToDisplay = cardData.avgValue || 0;
+        } else {
+            const showSum = cardData.sumValue !== undefined && cardData.sumValue !== 0;
+            valueToDisplay = showSum ? cardData.sumValue : cardData.total;
+        }
+
         let labelToDisplay = config?.propertyToDisplay || config?.displayName || 'Total Events';
+
+        // Auto-append "(Avg)" if not present in the name and it's an average card
+        if (isAverage) {
+            labelToDisplay = 'Average ' + labelToDisplay;
+        }
 
         if (valueToDisplay === 0 && cardData.total === 0) {
             ctx.font = '16px Arial';
@@ -145,12 +177,33 @@ KnuckleHUB.register('ChartRenderer', (function() {
         ctx.fillStyle = '#eee';
         ctx.font = 'bold 48px Orbitron, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(formatNumber(valueToDisplay), width / 2, height / 2);
+
+        // --- Formatting Logic ---
+        let formattedValue;
+
+        // Check the 'format' field from the Backend response
+        if (data.format === 'time') {
+            formattedValue = formatTime(valueToDisplay);
+        }
+        else {
+            // Fallback: Standard formatting
+            if (isAverage) {
+                // Show decimals for averages (e.g., 10.55)
+                formattedValue = Number(valueToDisplay).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+            } else {
+                // Integers for counts
+                formattedValue = formatNumber(valueToDisplay);
+            }
+        }
+
+        ctx.fillText(formattedValue, width / 2, height / 2);
 
         ctx.fillStyle = '#aaa';
         ctx.font = '16px Roboto, sans-serif';
         ctx.fillText(labelToDisplay, width / 2, height / 2 + 30);
     }
+
+    // --- Chart.js Configuration Building ---
 
     function _renderChartJsChart(ctx, chartData, chartType, canvasId, config, forceMultiSeries = false) {
         if (chartType === 'LineChart' && (chartData.type === 'multiLine' || forceMultiSeries) &&
@@ -372,7 +425,30 @@ KnuckleHUB.register('ChartRenderer', (function() {
     }
 
     function _buildCategoricalConfig(chartData, chartType, config) {
-        const rawData = chartData.data || [];
+        let rawData = chartData.data || [];
+
+        // --- NEW: Sorting Logic ---
+        if (config && config.sortOrder) {
+            // Clone array to avoid mutating original
+            rawData = [...rawData];
+
+            if (config.sortOrder === 'highest') {
+                // Sort by Value (High to Low)
+                rawData.sort((a, b) => {
+                    const valA = a.value !== undefined ? a.value : (a.count || 0);
+                    const valB = b.value !== undefined ? b.value : (b.count || 0);
+                    return valB - valA;
+                });
+            } else if (config.sortOrder === 'alpha') {
+                // Sort by Label (Alpha A-Z), handling numbers naturally
+                rawData.sort((a, b) => {
+                    const labelA = String(a.label || a.key || a.date || '');
+                    const labelB = String(b.label || b.key || b.date || '');
+                    return labelA.localeCompare(labelB, undefined, { numeric: true, sensitivity: 'base' });
+                });
+            }
+        }
+        // --------------------------
 
         if (chartType === 'StackedBarChart') {
             const colors = generateColors(rawData.length);

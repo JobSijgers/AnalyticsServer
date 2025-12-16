@@ -84,7 +84,7 @@ KnuckleHUB.register('API', (function() {
             const encodedId = encodeURIComponent(projectId);
             const auth = KnuckleHUB.get('Auth');
             const response = await auth.request(`${BASE_URL}/projects/image/${encodedId}`);
-            
+
             if (response.status === 204) {
                 return { success: true, imageUrl: null };
             }
@@ -113,14 +113,14 @@ KnuckleHUB.register('API', (function() {
             const formData = new FormData();
             formData.append('image', imageFile);
             formData.append('projectId', projectId);
-            
+
             const auth = KnuckleHUB.get('Auth');
             const response = await fetch(`${BASE_URL}/projects/image/upload`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${auth.getToken()}` },
                 body: formData
             });
-            
+
             if (response.ok) {
                 return { success: true };
             }
@@ -131,6 +131,50 @@ KnuckleHUB.register('API', (function() {
         }
     }
 
+    // ==================== Data Management API ====================
+
+    /**
+     * Get the Export URL for a project
+     * @param {string} projectId
+     */
+    function getExportUrl(projectId) {
+        const auth = KnuckleHUB.get('Auth');
+        const token = auth.getToken();
+        return `${BASE_URL}/projects/export?projectId=${encodeURIComponent(projectId)}&token=${encodeURIComponent(token)}`;
+    }
+
+    /**
+     * Import project data
+     * @param {string} projectId
+     * @param {File} file
+     */
+    async function importProjectData(projectId, file) {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            // ProjectId is now sent in the URL below
+
+            const auth = KnuckleHUB.get('Auth');
+
+            // [FIX] Add projectId to query string
+            const url = `${BASE_URL}/projects/import?projectId=${encodeURIComponent(projectId)}`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${auth.getToken()}` },
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return { success: true, count: data.count };
+            }
+            return { success: false, error: 'Import failed' };
+        } catch (error) {
+            console.error('API: importProjectData error:', error);
+            return { success: false, error: error.message };
+        }
+    }
     // ==================== Events API ====================
 
     /**
@@ -299,9 +343,9 @@ KnuckleHUB.register('API', (function() {
                 configId: params.configId || '',
                 useCache: params.useCache ? 'true' : 'false'
             });
-            
+
             const response = await _get(`/dashboard/custom-chart?${queryParams}`);
-            
+
             if (response.ok) {
                 if (response.status === 204) {
                     return { success: true, chartData: null };
@@ -325,20 +369,22 @@ KnuckleHUB.register('API', (function() {
         deleteProject,
         getProjectImage,
         uploadProjectImage,
-        
+        getExportUrl,
+        importProjectData,
+
         // Events
         getEventKeys,
         getEventProperties,
-        
+
         // Chart Configs
         getChartConfigs,
         saveChartConfig,
         deleteChartConfig,
         updateChartOrder,
-        
+
         // Chart Data
         getChartData,
-        
+
         // Utility
         get BASE_URL() { return BASE_URL; }
     };

@@ -9,6 +9,7 @@ public class EventDisplayConfig
     public string ChartType { get; set; } = string.Empty; 
     public string PropertyToDisplay { get; set; } = string.Empty;
     public int DisplayOrder { get; set; }
+    public string SortOrder { get; set; } = "highest";
     public bool IsEnabled { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

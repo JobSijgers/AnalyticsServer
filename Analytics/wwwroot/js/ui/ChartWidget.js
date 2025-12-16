@@ -18,16 +18,12 @@ KnuckleHUB.register('ChartWidget', (function() {
         let chartHeight = '300px'; // Default normal height
 
         // Determine size based on widgetSize and chart type
-        if (config.widgetSize === 'small' || config.chartType === 'NumberCard') {
+        if (config.widgetSize === 'small' || config.chartType === 'NumberCard' || config.chartType === 'AverageNumberCard') {
             sizeClass = 'chart-widget small';
             chartHeight = '150px';
         } else if (config.widgetSize === 'large') {
             sizeClass = 'chart-widget large';
             chartHeight = '400px';
-        } else {
-            // normal size
-            sizeClass = 'chart-widget';
-            chartHeight = '300px';
         }
 
         if (readonly) {
@@ -56,11 +52,40 @@ KnuckleHUB.register('ChartWidget', (function() {
         let copyIcon = '';
 
         if (!readonly && dashboardVar) {
+            // --- Sort Button Logic (Bar Charts Only) ---
+            let sortButtonHtml = '';
+            if (config.chartType === 'BarChart') {
+                const sortMenuId = `sort-menu-${config.id}`;
+                // Determine label based on current sort
+                let sortLabel = 'Sort ▾';
+                if (config.sortOrder === 'highest') sortLabel = 'High ⬇';
+                if (config.sortOrder === 'alpha') sortLabel = 'A-Z ⬇';
+
+                sortButtonHtml = `
+                    <div style="position: relative; display: inline-block; margin-right: 4px;">
+                        <button class="table-action" onclick="${dashboardVar}.toggleSortMenu(event, '${config.id}')" title="Sort Order">
+                            ${sortLabel}
+                        </button>
+                        <div id="${sortMenuId}" class="sort-menu-dropdown hidden" style="position: absolute; top: 100%; right: 0; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; z-index: 100; min-width: 140px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); overflow: hidden;">
+                            <div onclick="${dashboardVar}.applySort('${config.id}', 'highest')" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #333; font-size: 13px; color: #eee; text-align: left;" onmouseover="this.style.backgroundColor='#3a3a3a'" onmouseout="this.style.backgroundColor='transparent'">
+                                📊 Highest First
+                            </div>
+                            <div onclick="${dashboardVar}.applySort('${config.id}', 'alpha')" style="padding: 8px 12px; cursor: pointer; font-size: 13px; color: #eee; text-align: left;" onmouseover="this.style.backgroundColor='#3a3a3a'" onmouseout="this.style.backgroundColor='transparent'">
+                                🔤 Alphabetical
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            // ------------------------------------------
+
             const editButton = `<button class="table-action" onclick="${dashboardVar}.editChart('${config.id}')">Edit</button>`;
             const deleteButton = `<button class="table-action delete" onclick="${dashboardVar}.deleteChart('${config.id}')">Delete</button>`;
-            actionsHtml = `<div class="chart-widget-actions">${editButton}${deleteButton}</div>`;
 
-            if (config.chartType === 'NumberCard') {
+            // Insert sortButtonHtml before editButton
+            actionsHtml = `<div class="chart-widget-actions" style="display: flex; align-items: center;">${sortButtonHtml}${editButton}${deleteButton}</div>`;
+
+            if (config.chartType === 'NumberCard' || config.chartType === 'AverageNumberCard') {
                 const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
                 const btnStyle = "position: absolute; bottom: 5px; right: 5px; opacity: 0.1; transition: opacity 0.2s; background: none; border: none; color: #fff; cursor: pointer; padding: 5px; z-index: 20;";
                 const onHover = "this.style.opacity='1'";
@@ -92,27 +117,11 @@ KnuckleHUB.register('ChartWidget', (function() {
      * @param {boolean} readonly - Readonly mode
      */
     function update(element, config, dashboardVar, readonly = false) {
-        // Determine chart height based on saved widget size
-        let chartHeight = '300px'; // Default normal
-        if (config.widgetSize === 'small' || config.chartType === 'NumberCard') {
-            chartHeight = '150px';
-        } else if (config.widgetSize === 'large') {
-            chartHeight = '400px';
-        }
-
-        let className = 'chart-widget';
-        if (config.widgetSize === 'small' || config.chartType === 'NumberCard') {
-            className = 'chart-widget small';
-        } else if (config.widgetSize === 'large') {
-            className = 'chart-widget large';
-        }
-
-        if (readonly) className += ' readonly';
-
-        element.className = className;
+        // Reuse skeleton logic to ensure consistent HTML updates
+        const temp = createSkeleton(config, dashboardVar, readonly);
+        element.innerHTML = temp.innerHTML;
+        element.className = temp.className;
         element.setAttribute('data-chart-id', config.id);
-        element.style.position = 'relative';
-        element.innerHTML = _getSkeletonHTML(config, chartHeight, dashboardVar, readonly);
     }
 
     /**
