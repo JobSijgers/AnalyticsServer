@@ -273,6 +273,17 @@ KnuckleHUB.register('ProjectPage', (function() {
         if (!_elements.drillDownTbody) return;
 
         const fragment = document.createDocumentFragment();
+
+        // 24-hour format options
+        const timeOptions = {
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        };
+
         events.forEach(ev => {
             const tr = document.createElement('tr');
             const id = ev.id || ev.Id;
@@ -282,9 +293,9 @@ KnuckleHUB.register('ProjectPage', (function() {
 
             tr.id = `row-${id}`;
 
-            // 1. Time
+            // 1. Time (24h)
             const tdTime = document.createElement('td');
-            tdTime.textContent = timestamp ? new Date(timestamp).toLocaleString() : "-";
+            tdTime.textContent = timestamp ? new Date(timestamp).toLocaleString(undefined, timeOptions) : "-";
             tr.appendChild(tdTime);
 
             // 2. Key
@@ -308,14 +319,14 @@ KnuckleHUB.register('ProjectPage', (function() {
             const editBtn = document.createElement('button');
             editBtn.className = 'action-icon-btn edit';
             editBtn.title = 'Edit Event';
-            editBtn.innerHTML = '✏️'; // You could replace with SVG <svg...>...</svg>
+            editBtn.innerHTML = '✏️';
             editBtn.onclick = () => _openEditEventModal(id, properties);
 
             // Delete Icon
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'action-icon-btn delete';
             deleteBtn.title = 'Delete Event';
-            deleteBtn.innerHTML = '🗑️'; // You could replace with SVG <svg...>...</svg>
+            deleteBtn.innerHTML = '🗑️';
             deleteBtn.onclick = () => _deleteSingleEvent(id);
 
             tdActions.appendChild(editBtn);
@@ -348,7 +359,6 @@ KnuckleHUB.register('ProjectPage', (function() {
                 _addEditPropertyRow(key, value);
             });
         }
-        // Always ensure at least one row if empty, or just leave it blank to allow adding
     }
 
     function _addEditPropertyRow(key = '', value = '') {
@@ -356,19 +366,16 @@ KnuckleHUB.register('ProjectPage', (function() {
         const row = document.createElement('div');
         row.className = 'prop-edit-row';
 
-        // Key Input
         const keyInput = document.createElement('input');
         keyInput.className = 'prop-edit-input prop-key';
         keyInput.placeholder = 'Property Name';
         keyInput.value = key;
 
-        // Value Input
         const valInput = document.createElement('input');
         valInput.className = 'prop-edit-input prop-val';
         valInput.placeholder = 'Value';
         valInput.value = value;
 
-        // Type Select
         const typeSelect = document.createElement('select');
         typeSelect.className = 'prop-edit-type';
         const typeOpString = new Option('String', 'string');
@@ -378,12 +385,10 @@ KnuckleHUB.register('ProjectPage', (function() {
         typeSelect.add(typeOpNum);
         typeSelect.add(typeOpBool);
 
-        // Auto-detect type
         if (typeof value === 'number') typeSelect.value = 'number';
         else if (typeof value === 'boolean') typeSelect.value = 'boolean';
         else typeSelect.value = 'string';
 
-        // Delete Row Button
         const delBtn = document.createElement('button');
         delBtn.className = 'prop-delete-btn';
         delBtn.title = 'Remove Property';
@@ -409,9 +414,8 @@ KnuckleHUB.register('ProjectPage', (function() {
             let val = row.querySelector('.prop-val').value;
             const type = row.querySelector('.prop-edit-type').value;
 
-            if (!key) return; // Skip empty keys
+            if (!key) return;
 
-            // Type Conversion
             if (type === 'number') {
                 val = Number(val);
                 if (isNaN(val)) val = 0;
@@ -434,7 +438,6 @@ KnuckleHUB.register('ProjectPage', (function() {
             if (toast) toast.success('Event updated successfully');
             _elements.editEventModal.classList.add('hidden');
 
-            // Refresh row data
             const propsCell = document.getElementById(`props-${_editingEventId}`);
             if (propsCell) {
                 _renderPropertiesCell(propsCell, newProperties);
@@ -453,13 +456,11 @@ KnuckleHUB.register('ProjectPage', (function() {
     async function _deleteSingleEvent(id) {
         if (!confirm('Are you sure you want to permanently delete this event?')) return;
         const api = KnuckleHUB.get('API');
-        const toast = KnuckleHUB.get('Toast');
         const result = await api.deleteEvent(id, _currentProject);
         if (result.success) {
-            if (toast) toast.success("Event deleted.");
-            const row = document.getElementById(`row-${id}`);
-            if (row) row.remove();
+            window.location.reload();
         } else {
+            const toast = KnuckleHUB.get('Toast');
             if (toast) toast.error("Failed to delete event.");
         }
     }
