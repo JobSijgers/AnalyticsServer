@@ -1,103 +1,133 @@
-﻿using KHSWeb;
-using Utils;
+﻿using System.Reflection;
+using KHSWeb;
+using KHSWeb.Endpoints;
+using KHSWeb.Middleware;
+using KHSWeb.Models;
+using KHSWeb.Repositories;
+using KHSWeb.Security;
 using KHSWeb.Services;
+using KHSWeb.Workers;
+using Utils;
 
 namespace KHS;
 
 class Program
 {
-    private static readonly CancellationTokenSource _cts = new();
-    private static CacheUpdateService _cacheService = null!;
-
     static async Task Main(string[] args)
     {
+        // 1. Setup Debugging
         DebugUtils.SetPrintLevel(DebugUtils.PRINT_LEVEL.ALL);
         DebugUtils.SetPrintCollections(true);
 
-        var webServer = new WebServer();
-        await TestMongoConnection();
-        new MongoService().EnsureIndexesAsync().Wait();
+        DebugUtils.Print("Initializing web application builder...");
+        var builder = WebApplication.CreateBuilder(args);
 
-        try
+        // 2. Register Configuration & Core Services
+        builder.Services.AddCors(options =>
         {
-            DebugUtils.Print("Starting Services...");
+            options.AddPolicy("AllowAll", policy =>
+            {
+                policy.AllowAnyOrigin()
+                    .AllowAnyMethod()
+                    .AllowAnyHeader();
+            });
+        });
 
-            _cacheService = new CacheUpdateService();
-            await _cacheService.StartAsync(_cts.Token);
-            DebugUtils.PrintSuccess("Cache Update Service started.");
+        // 3. Register Repositories (Data Access Layer)
+        // These replace your old manual instantiations
+        builder.Services.AddSingleton<AnalyticsRepository>();
+        builder.Services.AddSingleton<ChartConfigRepository>();
+        builder.Services.AddSingleton<ChartCacheRepository>();
+        builder.Services.AddSingleton<ProjectImageRepository>();
 
-            await AnalyticsProcessingService.Instance.StartAsync(_cts.Token);
-            DebugUtils.PrintSuccess("Analytics Processing Service started.");
+        // 4. Register Domain Services (Business Logic)
+        builder.Services.AddSingleton<AnalyticsQueue>(); // Singleton: holds the channel state
+        builder.Services.AddSingleton<ChartDataService>();
+        
+        // 5. Register Background Workers (Hosted Services)
+        // The Host will automatically Start/Stop these.
+        builder.Services.AddHostedService<AnalyticsWorker>();
+        builder.Services.AddHostedService<CacheUpdateWorker>();
+
+        // 6. Build the App
+        var app = builder.Build();
+
+        // 7. Configure Middleware Pipeline
+        app.UseCors("AllowAll");
+        app.UseDefaultFiles();
+        app.UseStaticFiles();
+        
+        // Use your custom Auth Middleware
+        app.UseAuthMiddleware();
+
+        // 8. Initialize Database Indexes
+        // We resolve the repository from the container to run initialization logic
+        try 
+        {
+            var analyticsRepo = app.Services.GetRequiredService<AnalyticsRepository>();
+            await analyticsRepo.EnsureIndexesAsync();
+            DebugUtils.PrintSuccess("MongoDB Indexes ensured.");
         }
         catch (Exception ex)
         {
-            DebugUtils.PrintError($"Failed to start services: {ex.Message}");
-            return;
+            DebugUtils.PrintError($"Warning: Could not initialize DB indexes: {ex.Message}");
         }
 
-        Console.CancelKeyPress += (sender, eventArgs) =>
-        {
-            eventArgs.Cancel = true; 
-            _cts.Cancel(); 
-        };
+        // 9. Register Endpoints via Reflection
+        RegisterEndpoints(app);
 
-        DebugUtils.PrintWarning("Application is running. Press 'q' then Enter to quit, or press Ctrl+C.");
+        // 10. Run Application
+        DebugUtils.Print($"Web server starting on {Config.AppUrl}...");
+        
+        // Initialize Token Manager settings
+        TokenManager.Initialize();
 
-        try
-        {
-            await Task.Delay(-1, _cts.Token);
-        }
-        catch (TaskCanceledException)
-        {
-            // Expected exception when _cts.Cancel() is called
-        }
-        finally
-        {
-            Quit();
-        }
+        await app.RunAsync(Config.AppUrl);
     }
 
-    private static void Quit()
+    private static void RegisterEndpoints(WebApplication app)
     {
-        DebugUtils.PrintWarning("Shutting down application...");
-        _cts.Cancel();
+        DebugUtils.Print("Scanning for WebEndpoint implementations...");
+        
+        // Find all non-abstract subclasses of WebEndpoint
+        var endpointTypes = Assembly.GetExecutingAssembly()
+            .GetTypes()
+            .Where(t => t.IsSubclassOf(typeof(WebEndpoint)) && !t.IsAbstract);
 
-        if (_cacheService != null)
+        int count = 0;
+        foreach (var type in endpointTypes)
         {
             try
             {
-                _cacheService.StopAsync(CancellationToken.None).Wait();
+                // ActivatorUtilities allows the Endpoints to use Constructor Injection 
+                // if they need access to Services/Repositories.
+                var ep = (WebEndpoint)ActivatorUtilities.CreateInstance(app.Services, type);
+
+                DebugUtils.Print($"Registering endpoint: {ep.Method} {ep.Path} -> {ep.GetType().Name}");
+
+                switch (ep.Method)
+                {
+                    case WebEndpoint.METHOD.GET:
+                        app.MapGet(ep.Path, ep.Action);
+                        break;
+                    case WebEndpoint.METHOD.POST:
+                        app.MapPost(ep.Path, ep.Action);
+                        break;
+                    case WebEndpoint.METHOD.DELETE:
+                        app.MapDelete(ep.Path, ep.Action);
+                        break;
+                }
+
+                // Register security level
+                RouteSecurityRegistry.RegisterRoute(ep.Path, ep.Security);
+                count++;
             }
             catch (Exception ex)
             {
-                DebugUtils.PrintError($"Error stopping cache service: {ex.Message}");
+                DebugUtils.PrintError($"Failed to register endpoint {type.Name}: {ex.Message}");
             }
         }
 
-        // Stop Analytics Service
-        try
-        {
-            AnalyticsProcessingService.Instance.StopAsync().Wait();
-        }
-        catch (Exception ex)
-        {
-            DebugUtils.PrintError($"Error stopping analytics service: {ex.Message}");
-        }
-
-        DebugUtils.PrintWarning("Application shutdown complete");
-    }
-
-    static async Task TestMongoConnection()
-    {
-        try
-        {
-            var database = Config.GetDatabase();
-            await database.ListCollectionNamesAsync();
-            DebugUtils.PrintSuccess("MongoDB connection successful!");
-        }
-        catch (Exception ex)
-        {
-            DebugUtils.PrintError($"MongoDB connection failed: {ex.Message}");
-        }
+        DebugUtils.PrintSuccess($"Total endpoints registered: {count}");
     }
 }
