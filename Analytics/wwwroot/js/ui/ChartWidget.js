@@ -5,19 +5,11 @@
 KnuckleHUB.register('ChartWidget', (function() {
     'use strict';
 
-    /**
-     * Create a chart widget skeleton element
-     * @param {Object} config - Chart configuration
-     * @param {string} dashboardVar - Dashboard variable name for onclick handlers
-     * @param {boolean} readonly - Whether to create in readonly mode
-     * @returns {HTMLElement}
-     */
     function createSkeleton(config, dashboardVar, readonly = false) {
         const chartElement = document.createElement('div');
         let sizeClass = 'chart-widget';
-        let chartHeight = '300px'; // Default normal height
+        let chartHeight = '300px';
 
-        // Determine size based on widgetSize and chart type
         if (config.widgetSize === 'small' || config.chartType === 'NumberCard' || config.chartType === 'AverageNumberCard') {
             sizeClass = 'chart-widget small';
             chartHeight = '150px';
@@ -26,9 +18,7 @@ KnuckleHUB.register('ChartWidget', (function() {
             chartHeight = '400px';
         }
 
-        if (readonly) {
-            sizeClass += ' readonly';
-        }
+        if (readonly) sizeClass += ' readonly';
 
         chartElement.className = sizeClass;
         chartElement.setAttribute('data-chart-id', config.id);
@@ -38,15 +28,6 @@ KnuckleHUB.register('ChartWidget', (function() {
         return chartElement;
     }
 
-    /**
-     * Get skeleton HTML for a chart widget
-     * @param {Object} config - Chart configuration
-     * @param {string} chartHeight - Height of the chart
-     * @param {string} dashboardVar - Dashboard variable name for onclick handlers
-     * @param {boolean} readonly - Readonly mode
-     * @returns {string}
-     * @private
-     */
     function _getSkeletonHTML(config, chartHeight, dashboardVar, readonly = false) {
         let actionsHtml = '';
         let copyIcon = '';
@@ -56,7 +37,6 @@ KnuckleHUB.register('ChartWidget', (function() {
             let sortButtonHtml = '';
             if (config.chartType === 'BarChart') {
                 const sortMenuId = `sort-menu-${config.id}`;
-                // Determine label based on current sort
                 let sortLabel = 'Sort ▾';
                 if (config.sortOrder === 'highest') sortLabel = 'High ⬇';
                 if (config.sortOrder === 'alpha') sortLabel = 'A-Z ⬇';
@@ -77,12 +57,10 @@ KnuckleHUB.register('ChartWidget', (function() {
                     </div>
                 `;
             }
-            // ------------------------------------------
 
             const editButton = `<button class="table-action" onclick="${dashboardVar}.editChart('${config.id}')">Edit</button>`;
             const deleteButton = `<button class="table-action delete" onclick="${dashboardVar}.deleteChart('${config.id}')">Delete</button>`;
 
-            // Insert sortButtonHtml before editButton
             actionsHtml = `<div class="chart-widget-actions" style="display: flex; align-items: center;">${sortButtonHtml}${editButton}${deleteButton}</div>`;
 
             if (config.chartType === 'NumberCard' || config.chartType === 'AverageNumberCard') {
@@ -109,122 +87,53 @@ KnuckleHUB.register('ChartWidget', (function() {
         `;
     }
 
-    /**
-     * Update an existing chart widget
-     * @param {HTMLElement} element - Existing widget element
-     * @param {Object} config - Chart configuration
-     * @param {string} dashboardVar - Dashboard variable name
-     * @param {boolean} readonly - Readonly mode
-     */
     function update(element, config, dashboardVar, readonly = false) {
-        // Reuse skeleton logic to ensure consistent HTML updates
         const temp = createSkeleton(config, dashboardVar, readonly);
         element.innerHTML = temp.innerHTML;
         element.className = temp.className;
         element.setAttribute('data-chart-id', config.id);
     }
 
-    /**
-     * Insert widget in display order
-     * @param {HTMLElement} container - Container element
-     * @param {HTMLElement} element - Widget element
-     * @param {Object} config - Chart configuration
-     * @param {Array} allConfigs - All chart configurations
-     */
     function insertInOrder(container, element, config, allConfigs) {
         let inserted = false;
-
         for (let i = 0; i < container.children.length; i++) {
             const childId = container.children[i].getAttribute('data-chart-id');
             const childConfig = allConfigs.find(c => c.id === childId);
-
             if (childConfig && (childConfig.displayOrder || 0) > (config.displayOrder || 0)) {
                 container.insertBefore(element, container.children[i]);
                 inserted = true;
                 break;
             }
         }
-
-        if (!inserted) {
-            container.appendChild(element);
-        }
+        if (!inserted) container.appendChild(element);
     }
 
-    /**
-     * Show loading state for a chart
-     * @param {string} configId - Configuration ID
-     */
     function showLoading(configId) {
         const loadingEl = document.getElementById(`loading-${configId}`);
-        if (loadingEl) {
-            loadingEl.style.display = 'flex';
-        }
-
+        if (loadingEl) loadingEl.style.display = 'flex';
         const canvas = document.getElementById(`chart-${configId}`);
-        if (canvas) {
-            canvas.classList.add('hidden-canvas');
-        }
+        if (canvas) canvas.classList.add('hidden-canvas');
     }
 
-    /**
-     * Hide loading state for a chart
-     * @param {string} configId - Configuration ID
-     */
     function hideLoading(configId) {
         const loadingEl = document.getElementById(`loading-${configId}`);
-        if (loadingEl) {
-            loadingEl.remove();
-        }
-
+        if (loadingEl) loadingEl.remove();
         const canvas = document.getElementById(`chart-${configId}`);
-        if (canvas) {
-            canvas.classList.remove('hidden-canvas');
-        }
+        if (canvas) canvas.classList.remove('hidden-canvas');
     }
 
-    /**
-     * Update widget size based on saved preference
-     * @param {HTMLElement} element - Widget element
-     * @param {Object} config - Chart configuration
-     * @param {Object} chartData - Chart data
-     */
     function updateSize(element, config, chartData) {
-        // Remove any existing size classes
         element.classList.remove('small', 'large');
-
-        // Add the saved size class
-        if (config.widgetSize === 'small') {
-            element.classList.add('small');
-        } else if (config.widgetSize === 'large') {
-            element.classList.add('large');
-        }
-        // If normal, no additional class needed (uses default)
+        if (config.widgetSize === 'small') element.classList.add('small');
+        else if (config.widgetSize === 'large') element.classList.add('large');
     }
 
-    /**
-     * Remove a chart widget
-     * @param {string} configId - Configuration ID
-     */
     function remove(configId) {
         const chartRenderer = KnuckleHUB.get('ChartRenderer');
-        if (chartRenderer) {
-            chartRenderer.clearCanvas(`chart-${configId}`);
-        }
-
+        if (chartRenderer) chartRenderer.clearCanvas(`chart-${configId}`);
         const element = document.querySelector(`.chart-widget[data-chart-id="${configId}"]`);
-        if (element) {
-            element.remove();
-        }
+        if (element) element.remove();
     }
 
-    // Public API
-    return {
-        createSkeleton,
-        update,
-        insertInOrder,
-        showLoading,
-        hideLoading,
-        updateSize,
-        remove
-    };
+    return { createSkeleton, update, insertInOrder, showLoading, hideLoading, updateSize, remove };
 })());

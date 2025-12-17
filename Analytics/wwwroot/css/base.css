@@ -668,3 +668,213 @@ label.card-icon-btn {
     color: #4caf50;
     border-color: #4caf50;
 }
+
+/* Drill Down Table Styles */
+#drill-down-modal .modal-content {
+    background: rgba(26, 26, 26, 0.98);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--kh-primary);
+    box-shadow: 0 0 50px rgba(0,0,0,0.8);
+}
+
+.drill-down-container {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--kh-primary) #222;
+}
+
+.drill-down-container::-webkit-scrollbar { width: 8px; height: 8px; }
+.drill-down-container::-webkit-scrollbar-track { background: #222; }
+.drill-down-container::-webkit-scrollbar-thumb { background-color: var(--kh-primary); border-radius: 4px; }
+
+.drill-down-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: #eee;
+    font-size: 14px;
+    font-family: 'Roboto', sans-serif;
+}
+
+.drill-down-table th {
+    background-color: rgba(30, 30, 30, 0.95);
+    color: var(--kh-primary);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 15px;
+    text-align: left;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    border-bottom: 2px solid var(--kh-primary);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+.drill-down-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s;
+    vertical-align: middle;
+}
+
+.drill-down-table tr:hover td {
+    background-color: rgba(218, 135, 39, 0.1);
+}
+
+.json-cell {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    color: #aaa;
+    white-space: pre-wrap;
+    max-width: 400px;
+    word-wrap: break-word;
+}
+
+/* --- New Icon Buttons for Drill Down --- */
+.action-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    margin: 0 2px;
+    transition: all 0.2s ease;
+}
+
+.action-icon-btn.edit {
+    color: #4fc3f7; /* Light blue */
+    background: rgba(79, 195, 247, 0.1);
+    border-color: rgba(79, 195, 247, 0.3);
+}
+.action-icon-btn.edit:hover {
+    background: #4fc3f7;
+    color: #111;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(79, 195, 247, 0.4);
+}
+
+.action-icon-btn.delete {
+    color: #ef5350; /* Red */
+    background: rgba(239, 83, 80, 0.1);
+    border-color: rgba(239, 83, 80, 0.3);
+}
+.action-icon-btn.delete:hover {
+    background: #ef5350;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(239, 83, 80, 0.4);
+}
+
+.empty-message-row { text-align: center; padding: 40px !important; color: #666; font-style: italic; }
+
+/* --- Prettier Edit Modal Styles --- */
+#edit-event-modal .modal-content {
+    background: #1e1e1e;
+    border: 1px solid #444;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#edit-event-modal .modal-header {
+    background: #252525;
+    border-bottom: 1px solid #333;
+    padding: 15px 20px;
+}
+
+.edit-grid-header {
+    display: grid;
+    grid-template-columns: 2fr 3fr 120px 40px;
+    gap: 10px;
+    padding: 0 10px 10px 10px;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #333;
+    color: var(--kh-primary);
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.prop-edit-row {
+    display: grid;
+    grid-template-columns: 2fr 3fr 120px 40px;
+    gap: 10px;
+    margin-bottom: 8px;
+    align-items: center;
+    background: rgba(255,255,255,0.03);
+    padding: 8px 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    transition: background 0.2s;
+}
+
+.prop-edit-row:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: #444;
+}
+
+.prop-edit-input {
+    background: #111;
+    border: 1px solid #444;
+    color: #eee;
+    padding: 8px 10px;
+    border-radius: 4px;
+    width: 100%;
+    font-size: 0.9rem;
+    font-family: 'Roboto', sans-serif;
+    transition: border 0.2s;
+}
+
+.prop-edit-input:focus {
+    outline: none;
+    border-color: var(--kh-primary);
+    background: #000;
+}
+
+.prop-edit-type {
+    background: #111;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 8px;
+    border-radius: 4px;
+    width: 100%;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.prop-edit-type:focus {
+    border-color: var(--kh-primary);
+    color: #eee;
+}
+
+.prop-delete-btn {
+    background: transparent;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+    height: 100%;
+}
+
+.prop-delete-btn:hover {
+    color: #ff5252;
+}
+
+.add-prop-container {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #444;
+}

@@ -39,13 +39,14 @@
                         <option value="36500">All Time</option>
                     </select>
                 </div>
+                <button id="recent-events-btn" class="control-btn secondary" title="View last 100 events">
+                    <span class="btn-icon">📋</span> Recent
+                </button>
                 <button id="refresh-btn" class="control-btn">
-                    <span class="btn-icon">↻</span>
-                    Refresh
+                    <span class="btn-icon">↻</span> Refresh
                 </button>
                 <button id="logout-btn" class="control-btn logout">
-                    <span class="btn-icon">🚪</span>
-                    Logout
+                    <span class="btn-icon">🚪</span> Logout
                 </button>
             </div>
         </div>
@@ -92,7 +93,6 @@
     </div>
 </main>
 
-<!-- Chart Configuration Modal -->
 <div id="config-modal" class="modal hidden">
     <div class="modal-content large" style="width: 1200px; max-width: 95vw;">
         <div class="modal-header">
@@ -162,7 +162,68 @@
     </div>
 </div>
 
-<!-- Core Scripts -->
+<div id="drill-down-modal" class="modal hidden">
+    <div class="modal-content large" style="width: 1000px; height: 85vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+            <h3 id="drill-down-title" style="display: flex; align-items: center; gap: 10px;">
+                <span style="color: var(--kh-primary);">📋</span> Event Details
+            </h3>
+            <button class="modal-close" onclick="document.getElementById('drill-down-modal').classList.add('hidden')">&times;</button>
+        </div>
+        <div class="modal-body" style="flex: 1; overflow: hidden; padding: 0; background: rgba(0,0,0,0.2);">
+            <div id="drill-down-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--kh-primary); display: flex; flex-direction: column; align-items: center;">
+                <div class="loading-spinner" style="margin-bottom: 15px;"></div>
+                <span>Loading events...</span>
+            </div>
+
+            <div class="drill-down-container">
+                <table class="drill-down-table hidden" id="drill-down-table">
+                    <thead>
+                    <tr>
+                        <th style="width: 180px;">Time</th>
+                        <th style="width: 200px;">Event Key</th>
+                        <th>Properties</th>
+                        <th style="width: 100px; text-align: center;">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="drill-down-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div style="padding: 10px 20px; border-top: 1px solid rgba(255,255,255,0.1); text-align: right; color: #666; font-size: 0.8rem;">
+            Showing up to 100 most recent records
+        </div>
+    </div>
+</div>
+
+<div id="edit-event-modal" class="modal hidden">
+    <div class="modal-content" style="width: 700px; max-width: 95vw;">
+        <div class="modal-header">
+            <h3>Edit Event Properties</h3>
+            <button class="modal-close" onclick="document.getElementById('edit-event-modal').classList.add('hidden')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px; max-height: 60vh; overflow-y: auto;">
+            <div class="edit-grid-header">
+                <div>Property Name</div>
+                <div>Value</div>
+                <div>Type</div>
+                <div></div>
+            </div>
+            <div id="edit-props-container"></div>
+
+            <div class="add-prop-container">
+                <button type="button" id="add-prop-btn" class="control-btn secondary" style="width: 100%; border-style: dashed;">
+                    <span class="btn-icon">➕</span> Add New Property
+                </button>
+            </div>
+        </div>
+        <div class="modal-header" style="border-top: 1px solid #333; border-bottom: none; justify-content: flex-end; padding: 15px 20px; background: #252525;">
+            <button type="button" class="control-btn secondary" onclick="document.getElementById('edit-event-modal').classList.add('hidden')">Cancel</button>
+            <button type="button" class="control-btn" id="save-event-btn" style="margin-left: 10px;">Save Changes</button>
+        </div>
+    </div>
+</div>
+
 <script src="js/core/App.js"></script>
 <script src="js/services/Toast.js"></script>
 <script src="js/services/Auth.js"></script>
